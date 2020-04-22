@@ -10,7 +10,7 @@
     "build": "truffle build",
     "test": "truffle test",
     "truffle": "truffle",
-    "flatten": "truffle-flattener contracts/EsToken.sol >> contracts/Flattened.sol"
+    "flatten": "truffle-flattener contracts/Exchange.sol >> contracts/Flattened.sol"
   },
   "author": "",
   "license": "ISC",
