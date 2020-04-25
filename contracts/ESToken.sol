@@ -1,9 +1,9 @@
 pragma solidity ^0.6.0;
 
-import "./ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "./ERC20.sol";
 
 
 contract ESToken is Context, ERC20, Ownable {
@@ -12,6 +12,7 @@ contract ESToken is Context, ERC20, Ownable {
 
     address constant private RESERVE_ADDRESS = 0x0000000000000000000000000000000000000001;
     address private _reserveAddress;
+    address private _exchangeAddress;
 
     uint256 private _dailyInterest;
 
@@ -22,11 +23,12 @@ contract ESToken is Context, ERC20, Ownable {
         _dailyInterest = 1_000_200_000_000_000_000; // +0.02%
     }
 
-    function init(address exchangeAddress) external onlyOwner {
-        require(exchangeAddress != address(0), "ESToken: reserveAddress is zero address");
+    function init(address newExchangeAddress) external onlyOwner {
+        require(newExchangeAddress != address(0), "ESToken: newExchangeAddress is zero address");
         require(_reserveAddress == address(0), "ESToken: re-initialization");
         _reserveAddress = RESERVE_ADDRESS;
-        _mint(exchangeAddress, 70_000_000 * 10 ** uint256(decimals()));
+        _exchangeAddress = newExchangeAddress;
+        _mint(_exchangeAddress, 70_000_000 * 10 ** uint256(decimals()));
         _mint(_reserveAddress, 25_000_000 * 10 ** uint256(decimals()));
         _mint(_msgSender(), 5_000_000 * 10 ** uint256(decimals()));
     }
@@ -40,11 +42,20 @@ contract ESToken is Context, ERC20, Ownable {
         return _reserveAddress;
     }
 
+    function exchangeAddress() external view returns (address) {
+        return _exchangeAddress;
+    }
+
     function dailyInterest() external view returns (uint256) {
         return _dailyInterest;
     }
 
     function balanceOf(address account) public view override returns (uint256) {
+        if (account == _reserveAddress ||
+            account == owner() ||
+            account == _exchangeAddress) {
+            return super.balanceOf(account);
+        }
         if (block.timestamp > _lastOperationTimestamp[account]) {
             if (_balances[account] > 0) {
                 uint256 delta =
@@ -65,10 +76,16 @@ contract ESToken is Context, ERC20, Ownable {
         uint256 balance,
         uint256 interest) internal pure returns (uint256) {
         uint256 period = timestampNow.sub(lastOperationTimestamp);
-        return balance.mul(interest).div(10 ** 18).mul(period).div(86400); // balance * interest * period / (24 * 60 * 60)
+        uint256 interestPersent = interest.sub(10 ** 18);
+        return balance.mul(interestPersent).div(10 ** 18).mul(period).div(86400); // balance * interest * period / (24 * 60 * 60)
     }
 
     function _updateBalance(address account) internal {
+        if (account == _reserveAddress ||
+            account == owner() ||
+            account == _exchangeAddress) {
+            return ;
+        }
         if (block.timestamp > _lastOperationTimestamp[account]) {
             if (_balances[account] > 0) {
                 uint256 delta =
