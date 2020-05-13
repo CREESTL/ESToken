@@ -57,13 +57,14 @@ contract Exchange is Ownable {
         _USDT = potentialUSDT;
     }
 
-    function getNextKey (address tokenSrc, uint256 key) external view returns (uint256) {
-        if (!_orderBooks[tokenSrc].tree.exists(key))
-            return 0;
-        return key == 0 ? _orderBooks[tokenSrc].tree.first() : _orderBooks[tokenSrc].tree.next(key);
+    function getNextPrice (address tokenSrc, uint256 price) external view returns (uint256) {
+        return price == 0 ? _orderBooks[tokenSrc].tree.first() : _orderBooks[tokenSrc].tree.next(price);
     }
 
-    // TODO: functions for orderCount + orderByIndex
+    function getUidsByPrice (address tokenSrc, uint256 price) external view returns (uint256[] memory) {
+        return _orderBooks[tokenSrc].uids[price];
+    }
+
     function getMyOrders () external view returns (uint256[] memory) {
         Order[] memory myESTTOrders = _ledger[_msgSender()][address(_ESTT)].orders;
         Order[] memory myUSDTOrders = _ledger[_msgSender()][address(_USDT)].orders;
@@ -86,8 +87,10 @@ contract Exchange is Ownable {
         uint256 srcAmount,
         address dest,
         uint256 destAmount) external {
-        require(src == address(_ESTT) || src == address(_USDT), "wrong src address");
-        require(dest == address(_ESTT) || dest == address(_USDT), "wrong dest address");
+        require(
+            (src == address(_ESTT) && dest == address(_USDT)) ||
+            (src == address(_USDT) && dest == address(_ESTT)),
+             "wrong src or dest addresses");
         uint32 userId = uint32(_msgSender());
         if (_usersAddresses[userId] == address(0)) {
             _usersAddresses[userId] = _msgSender();
@@ -110,23 +113,23 @@ contract Exchange is Ownable {
         }
     }
 
-    function continueTrade (uint256 uid) external {
-        Order memory order = _getOrderByUid(uid);
-        require(_msgSender() == order.trader, "doesn't have rights to continue buy");
-        if(_trade(order) == 0) {
-            (address src, ) = _getAddressesByUid(order.uid);
-            _removeOrder(uid);
-            uint256 price = _getPrice(order, true);
-            _removeOrderFromOrderBook(uid, src, price);
-        } else {
-            Order storage oldOrder = _getStorageOrderByUid(uid);
-            oldOrder.filled = order.filled; // TODO: Check that
-        }
-    }
+//    function continueTrade (uint256 uid) external { // TODO: remove me
+//        Order memory order = _getOrderByUid(uid);
+//        require(_msgSender() == order.trader, "doesn't have rights to continue buy");
+//        if(_trade(order) == 0) {
+//            (address src, ) = _getAddressesByUid(order.uid);
+//            _removeOrder(uid);
+//            uint256 price = _getPrice(order, true);
+//            _removeOrderFromOrderBook(uid, src, price);
+//        } else {
+//            Order storage oldOrder = _getStorageOrderByUid(uid);
+//            oldOrder.filled = order.filled;
+//        }
+//    }
 
     function cancel (uint256 uid) external {
         Order memory order = _getOrderByUid(uid);
-        require(_msgSender() == order.trader, "doesn't have rights to continue buy");
+        require(_msgSender() == order.trader, "doesn't have rights to cancel order");
         (address src, ) = _getAddressesByUid(order.uid);
         uint256 restAmount = order.srcAmount.sub(order.filled);
         _ledger[order.trader][src].reservedBalance = _ledger[order.trader][src].reservedBalance.sub(restAmount);
@@ -137,18 +140,32 @@ contract Exchange is Ownable {
 
     function _getOrderByUid (uint256 uid) internal view returns (Order memory) {
         (ErrorType error, uint256 id, address tokenSrcAddress, address user) = _unpackUid(uid);
-        require(error == ErrorType.None, "Wrong Uid");
+        require(error == ErrorType.None && id <= _lastUid, "Wrong Uid");
         uint256 length = _ledger[user][tokenSrcAddress].orders.length;
-        require(id < length, "Logical Error! Wrong Uid");
-        return _ledger[user][tokenSrcAddress].orders[id];
+        uint256 index = length; // TODO: refactor me
+        for (uint256 i = 0; i < length; ++i) {
+            if (_ledger[user][tokenSrcAddress].orders[i].uid == uid) {
+                index = i;
+                break;
+            }
+        }
+        require(index < length, "order not found");
+        return _ledger[user][tokenSrcAddress].orders[index];
     }
 
     function _getStorageOrderByUid (uint256 uid) internal view returns (Order storage) {
         (ErrorType error, uint256 id, address tokenSrcAddress, address user) = _unpackUid(uid);
-        require(error == ErrorType.None, "Wrong Uid");
+        require(error == ErrorType.None && id <= _lastUid, "Wrong Uid");
         uint256 length = _ledger[user][tokenSrcAddress].orders.length;
-        require(id < length, "Logical Error! Wrong Uid");
-        return _ledger[user][tokenSrcAddress].orders[id];
+        uint256 index = length; // TODO: refactor me
+        for (uint256 i = 0; i < length; ++i) {
+            if (_ledger[user][tokenSrcAddress].orders[i].uid == uid) {
+                index = i;
+                break;
+            }
+        }
+        require(index < length, "order not found");
+        return _ledger[user][tokenSrcAddress].orders[index];
     }
 
     // place limit order
@@ -190,9 +207,9 @@ contract Exchange is Ownable {
 
     function _removeOrder (uint256 uid) internal {
         (ErrorType error, uint256 id, address tokenSrcAddress, address user) = _unpackUid(uid);
-        require(error == ErrorType.None, "Wrong Uid");
+        require(error == ErrorType.None, "_removeOrder: Wrong Uid");
+        require(id <= _lastUid, "Wrong Uid");
         uint256 length = _ledger[user][tokenSrcAddress].orders.length;
-        require(id < length, "Logical Error! Wrong Uid");
         for (uint256 i = 0; i < length; ++i) {
             if (_ledger[user][tokenSrcAddress].orders[i].uid == uid) {
                 if (i != length.sub(1)) {
@@ -248,7 +265,7 @@ contract Exchange is Ownable {
     {
         (ERC20 orderToken, ERC20 oppositeToken) = _getERC20ByUid(order.uid);
         uint256 neededOrder = order.srcAmount.sub(order.filled);
-        uint256 availableOpposite = (opposite.srcAmount.sub(opposite.filled)).mul(price).div(10 ** uint256(orderToken.decimals()));
+        uint256 availableOpposite = (opposite.srcAmount.sub(opposite.filled)).mul(price).div(10 ** uint256(oppositeToken.decimals()));
         if (neededOrder > availableOpposite)
             neededOrder = availableOpposite;
 
@@ -267,7 +284,7 @@ contract Exchange is Ownable {
 
     function _packUid (uint256 index, address tokenSrc, address userAddress) internal view returns (uint256) {
         uint8 tradeType = tokenSrc == address(_ESTT) ? ESTT_2_USDT : USDT_2_ESTT;
-        return index << 40 | (tradeType << 32) | uint32(userAddress);
+        return index << 40 | (uint64(tradeType) << 32) | uint32(userAddress);
     }
 
     function _unpackUid (uint256 uid) internal view returns (ErrorType, uint256, address, address) {
@@ -284,9 +301,9 @@ contract Exchange is Ownable {
     }
 
     function _getERC20ByUid (uint256 uid) internal view returns (ERC20 srcToken, ERC20 destToken) {
-        (ErrorType error, , address tokenSrcAddress, ) = _unpackUid(uid);
+        (ErrorType error, , address srcAddress, ) = _unpackUid(uid);
         require(error == ErrorType.None, "Wrong Uid");
-        if (tokenSrcAddress == address(_ESTT)) {
+        if (srcAddress == address(_ESTT)) {
             return (_ESTT, _USDT);
         }
         return (_USDT, _ESTT);
@@ -305,14 +322,14 @@ contract Exchange is Ownable {
         (ErrorType error, , address src, ) = _unpackUid(order.uid);
         require(error == ErrorType.None, "Wrong Uid");
         if (!invertFlag) {
-            if (src == address(_ESTT)) {
-                return order.srcAmount.mul(10 ** uint256(_USDT.decimals())).div(order.destAmount);
-            }
-            return order.srcAmount.mul(10 ** uint256(_ESTT.decimals())).div(order.destAmount);
+            uint256 decimals = src == address(_ESTT) ?
+                10 ** uint256(_USDT.decimals()) :
+                10 ** uint256(_ESTT.decimals());
+            return order.srcAmount.mul(decimals).div(order.destAmount);
         }
-        if (src == address(_ESTT)) {
-            return order.destAmount.mul(10 ** uint256(_ESTT.decimals())).div(order.srcAmount);
-        }
-        return order.destAmount.mul(10 ** uint256(_USDT.decimals())).div(order.srcAmount);
+        uint256 decimals = src == address(_ESTT) ?
+            10 ** uint256(_ESTT.decimals()) :
+            10 ** uint256(_USDT.decimals());
+        return order.destAmount.mul(decimals).div(order.srcAmount);
     }
 }
