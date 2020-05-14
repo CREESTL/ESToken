@@ -43,7 +43,7 @@ contract('ESToken', async ([owner, alice, bob]) => {
       (await this.esToken.exchangeAddress()).should.be.equal(ZERO_ADDRESS);
 
       await expectRevert(this.esToken.init(TEST_EXCHANGE_ADDRESS, { from: alice }), 'Ownable: caller is not the owner');
-      await expectRevert(this.esToken.init(ZERO_ADDRESS, { from: owner }), 'ESToken: newExchangeAddress is zero address');
+      await expectRevert(this.esToken.init(ZERO_ADDRESS, { from: owner }), 'ESToken: newExchangeAddress does not match the exchange');
       await this.esToken.init(TEST_EXCHANGE_ADDRESS, { from: owner });
       await expectRevert(this.esToken.init(TEST_EXCHANGE_ADDRESS, { from: owner }), 'ESToken: re-initialization');
 

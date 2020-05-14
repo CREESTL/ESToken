@@ -6,9 +6,10 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "../BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
 import "./ESToken.sol";
+import "./Interfaces.sol";
 
 
-contract Exchange is Ownable {
+contract Exchange is ExchangeInterface, Ownable {
     using SafeMath for uint256;
     using Address for address;
     using BokkyPooBahsRedBlackTreeLibrary for BokkyPooBahsRedBlackTreeLibrary.Tree;
@@ -38,23 +39,29 @@ contract Exchange is Ownable {
 
     uint8 constant private ESTT_2_USDT = 1;
     uint8 constant private USDT_2_ESTT = 2;
+    uint256 constant private REFERRAL_BONUS = 500_000_000_000_000; // +0.05%
+    uint256 constant private EXCHANGE_FEE = 8_000_000_000_000_000; // 0.8% // TODO: not implemented
 
     mapping(address => OrderBook) private _orderBooks; // srcToken -> OrderBook
     mapping(uint256 => address) private _usersAddresses; // uint32(address) -> address
     mapping(address => mapping(address => TokenEntity)) private _ledger; // user, ESTT/USDT pair => TokenEntity
 
-    ESToken private _ESTT;
+    ERC20 private _ESTT;
     ERC20 private _USDT;
 
     uint192 private _lastUid;
 
     constructor (address esttAddress, address usdtAddress) public {
-        ESToken potentialESTT = ESToken(esttAddress);
-        require(potentialESTT.decimals() == 6, "Exchange: address does not match the ESTT");
-        _ESTT = potentialESTT;
+        ESTokenInterface potentialESTT = ESTokenInterface(esttAddress);
+        require(potentialESTT.isESToken(), "Exchange: address does not match the ESTT");
+        _ESTT = ERC20(esttAddress);
         ERC20 potentialUSDT = ESToken(usdtAddress);
-        require(potentialUSDT.decimals() == 18, "Exchange: address does not match the USDT");
+        require(potentialUSDT.decimals() > 0, "Exchange: address does not match the USDT");
         _USDT = potentialUSDT;
+    }
+
+    function isExchange() pure external override returns (bool) {
+        return true;
     }
 
     function getNextPrice (address tokenSrc, uint256 price) external view returns (uint256) {
@@ -86,7 +93,8 @@ contract Exchange is Ownable {
         address src,
         uint256 srcAmount,
         address dest,
-        uint256 destAmount) external {
+        uint256 destAmount,
+        address referral) external {
         require(
             (src == address(_ESTT) && dest == address(_USDT)) ||
             (src == address(_USDT) && dest == address(_ESTT)),
@@ -110,6 +118,13 @@ contract Exchange is Ownable {
             _ledger[order.trader][src].orders.push(order);
             uint256 price = _getPrice(order, true);
             _insertOrderToPriceIndex(_orderBooks[src], order.uid, price);
+        }
+        ESTokenInterface esttInerface = ESTokenInterface(address(_ESTT));
+        if (referral != address(0) &&
+            esttInerface.parentReferral(_msgSender()) == address(0) &&
+            src == address(_USDT)
+        ) {
+            esttInerface.setParentReferral(_msgSender(), referral, order.filled.mul(REFERRAL_BONUS).div(10 ** 18));
         }
     }
 
