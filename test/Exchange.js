@@ -32,12 +32,12 @@ contract('Exchange', async ([owner, alice, bob]) => {
     await this.estt.transfer(alice, new BN('1000000'), { from: owner }); // 1 estt
     await this.usdt.approve(this.exchange.address, ether('5'), { from: alice }); // 5 usdt
     await this.estt.approve(this.exchange.address, new BN('1000000'), { from: alice }); // 1 estt
-    await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
-    await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
-    await this.exchange.trade(this.usdt.address, ether('2'), this.estt.address, new BN('100000000'), { from: alice }); // 2 usdt -> 100 estt
-    await expectRevert(this.exchange.trade(this.usdt.address, ether('2'), this.estt.address, new BN('100000000'), { from: alice }), 'not enough balance');
-    await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
-    await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, ether('0.025'), { from: alice }); // 1 estt -> 0.025 usdt
+    await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
+    await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
+    await this.exchange.trade(this.usdt.address, ether('2'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 2 usdt -> 100 estt
+    await expectRevert(this.exchange.trade(this.usdt.address, ether('2'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }), 'not enough balance');
+    await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
+    await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, ether('0.025'), ZERO_ADDRESS, { from: alice }); // 1 estt -> 0.025 usdt
   });
 
   describe('Tests of get methods', async () => {
@@ -46,11 +46,11 @@ contract('Exchange', async ([owner, alice, bob]) => {
       await this.estt.transfer(alice, new BN('1000000'), { from: owner }); // 1 estt
       await this.usdt.approve(this.exchange.address, ether('5'), { from: alice }); // 5 usdt
       await this.estt.approve(this.exchange.address, new BN('1000000'), { from: alice }); // 1 estt
-      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
-      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
-      await this.exchange.trade(this.usdt.address, ether('2'), this.estt.address, new BN('100000000'), { from: alice }); // 2 usdt -> 100 estt
-      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
-      await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, ether('0.025'), { from: alice }); // 1 estt -> 0.025 usdt
+      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
+      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
+      await this.exchange.trade(this.usdt.address, ether('2'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 2 usdt -> 100 estt
+      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
+      await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, ether('0.025'), ZERO_ADDRESS, { from: alice }); // 1 estt -> 0.025 usdt
     });
 
     it('should show prices and orders params', async () => {
@@ -118,10 +118,10 @@ contract('Exchange', async ([owner, alice, bob]) => {
     beforeEach(async () => {
       await this.usdt.transfer(alice, ether('5'), { from: owner }); // 5 usdt
       await this.usdt.approve(this.exchange.address, ether('5'), { from: alice }); // 5 usdt
-      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
-      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
-      await this.exchange.trade(this.usdt.address, ether('2'), this.estt.address, new BN('100000000'), { from: alice }); // 2 usdt -> 100 estt
-      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), { from: alice }); // 1 usdt -> 100 estt
+      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
+      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
+      await this.exchange.trade(this.usdt.address, ether('2'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 2 usdt -> 100 estt
+      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 100 estt
     });
 
     it('should cancel order', async () => {
@@ -145,14 +145,14 @@ contract('Exchange', async ([owner, alice, bob]) => {
     it('should support piecemeal purchases', async () => {
       await this.estt.transfer(bob, new BN('400000000'), { from: owner }); // 400 estt
       await this.estt.approve(this.exchange.address, new BN('400000000'), { from: bob }); // 400 estt
-      await this.exchange.trade(this.estt.address, new BN('60000000'), this.usdt.address, ether('1'), { from: bob }); // 60 estt -> 1 usdt
+      await this.exchange.trade(this.estt.address, new BN('60000000'), this.usdt.address, ether('1'), ZERO_ADDRESS, { from: bob }); // 60 estt -> 1 usdt
       const price_usdt_estt_0 = await this.exchange.getNextPrice(this.usdt.address, 0);
       const price_usdt_estt_0_uids = await this.exchange.getUidsByPrice(this.usdt.address, price_usdt_estt_0);
       const order_usdt_estt_0 = await this.exchange.getOrderByUid(price_usdt_estt_0_uids[0]);
       order_usdt_estt_0.filled.should.be.bignumber.equal(ether('1.2'));
       const alice_orders_0 = await this.exchange.getMyOrders({ from: alice });
       assertEqual(alice_orders_0.length, 4);
-      await this.exchange.trade(this.estt.address, new BN('60000000'), this.usdt.address, ether('1'), { from: bob }); // 60 estt -> 1 usdt
+      await this.exchange.trade(this.estt.address, new BN('60000000'), this.usdt.address, ether('1'), ZERO_ADDRESS, { from: bob }); // 60 estt -> 1 usdt
       const bob_orders_0 = await this.exchange.getMyOrders({ from: bob });
       assertEqual(bob_orders_0.length, 1);
       const alice_orders_1 = await this.exchange.getMyOrders({ from: alice });
@@ -160,10 +160,10 @@ contract('Exchange', async ([owner, alice, bob]) => {
       await this.exchange.cancel(bob_orders_0[0], { from: bob });
       const bob_orders_1 = await this.exchange.getMyOrders({ from: bob });
       assertEqual(bob_orders_1.length, 0);
-      await this.exchange.trade(this.estt.address, new BN('100000000'), this.usdt.address, ether('1'), { from: bob }); // 100 estt -> 1 usdt
+      await this.exchange.trade(this.estt.address, new BN('100000000'), this.usdt.address, ether('1'), ZERO_ADDRESS, { from: bob }); // 100 estt -> 1 usdt
       const alice_orders_2 = await this.exchange.getMyOrders({ from: alice });
       assertEqual(alice_orders_2.length, 2);
-      await this.exchange.trade(this.estt.address, new BN('200000000'), this.usdt.address, ether('1.5'), { from: bob }); // 200 estt -> 1.5 usdt
+      await this.exchange.trade(this.estt.address, new BN('200000000'), this.usdt.address, ether('1.5'), ZERO_ADDRESS, { from: bob }); // 200 estt -> 1.5 usdt
       const alice_orders_3 = await this.exchange.getMyOrders({ from: alice });
       assertEqual(alice_orders_3.length, 0);
       const bob_orders_2 = await this.exchange.getMyOrders({ from: bob });

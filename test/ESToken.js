@@ -12,10 +12,11 @@ require('chai')
 const { ZERO_ADDRESS } = constants;
 
 const ESToken = artifacts.require('ESToken');
+const Exchange = artifacts.require('Exchange');
+const USDToken = artifacts.require('USDToken');
 
 contract('ESToken', async ([owner, alice, bob]) => {
   const RESERVE_ADDRESS = '0x0000000000000000000000000000000000000001';
-  const TEST_EXCHANGE_ADDRESS = '0x0000000000000000000000000000000000000002';
 
   describe('Constructor tests', async () => {
     it('should create ESToken contract and show default parameters', async () => {
@@ -34,6 +35,8 @@ contract('ESToken', async ([owner, alice, bob]) => {
   describe('Parameter tests', async () => {
     beforeEach(async () => {
       this.esToken = await ESToken.new({ from: owner });
+      this.usdt = await USDToken.new({ from: owner });
+      this.exchange = await Exchange.new(this.esToken.address, this.usdt.address, { from: owner });
     });
 
     it('should initialize', async () => {
@@ -42,21 +45,21 @@ contract('ESToken', async ([owner, alice, bob]) => {
       (await this.esToken.reserveAddress()).should.be.equal(ZERO_ADDRESS);
       (await this.esToken.exchangeAddress()).should.be.equal(ZERO_ADDRESS);
 
-      await expectRevert(this.esToken.init(TEST_EXCHANGE_ADDRESS, { from: alice }), 'Ownable: caller is not the owner');
-      await expectRevert(this.esToken.init(ZERO_ADDRESS, { from: owner }), 'ESToken: newExchangeAddress does not match the exchange');
-      await this.esToken.init(TEST_EXCHANGE_ADDRESS, { from: owner });
-      await expectRevert(this.esToken.init(TEST_EXCHANGE_ADDRESS, { from: owner }), 'ESToken: re-initialization');
+      await expectRevert(this.esToken.init(this.exchange.address, { from: alice }), 'Ownable: caller is not the owner');
+      await expectRevert(this.esToken.init(ZERO_ADDRESS, { from: owner }), 'revert');
+      await this.esToken.init(this.exchange.address, { from: owner });
+      await expectRevert(this.esToken.init(this.exchange.address, { from: owner }), 'ESToken: re-initialization');
 
       (await this.esToken.totalSupply.call()).should.be.bignumber.equal(new BN('100000000000000')); // 100_000_000.000000
       (await this.esToken.reserveAddress()).should.be.equal(RESERVE_ADDRESS);
-      (await this.esToken.exchangeAddress()).should.be.equal(TEST_EXCHANGE_ADDRESS);
-      (await this.esToken.balanceOf(TEST_EXCHANGE_ADDRESS)).should.be.bignumber.equal(new BN('70000000000000')); // 70_000_000.000000
+      (await this.esToken.exchangeAddress()).should.be.equal(this.exchange.address);
+      (await this.esToken.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('70000000000000')); // 70_000_000.000000
       (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.equal(new BN('25000000000000')); // 25_000_000.000000
       (await this.esToken.balanceOf(owner)).should.be.bignumber.equal(new BN('5000000000000')); //  5_000_000.000000
     });
 
     it('should set/get daily interest', async () => {
-      await this.esToken.init(TEST_EXCHANGE_ADDRESS, { from: owner });
+      await this.esToken.init(this.exchange.address, { from: owner });
       (await this.esToken.dailyInterest()).should.be.bignumber.equal(new BN('1000200000000000000')); // 1 + 0.02%
 
       await expectRevert(this.esToken.setDailyInterest(new BN('999999999999999999'), { from: owner }), 'ESToken: negative daily interest');
@@ -73,7 +76,9 @@ contract('ESToken', async ([owner, alice, bob]) => {
   describe('Tests of methods', async () => {
     beforeEach(async () => {
       this.esToken = await ESToken.new({ from: owner });
-      await this.esToken.init(TEST_EXCHANGE_ADDRESS, { from: owner });
+      this.usdt = await USDToken.new({ from: owner });
+      this.exchange = await Exchange.new(this.esToken.address, this.usdt.address, { from: owner });
+      await this.esToken.init(this.exchange.address, { from: owner });
     });
 
     it('should show balance', async () => {

@@ -11,6 +11,17 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
+    struct Referral {
+        address user;
+        uint256 expIndex;
+        uint256 balance;
+    }
+
+    struct ParentRef {
+        address user;
+        uint256 index;
+    }
+
     address constant private RESERVE_ADDRESS = 0x0000000000000000000000000000000000000001;
     address private _reserveAddress;
     address private _exchangeAddress;
@@ -19,10 +30,11 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     uint256 private _referralInterest;
     uint256 private _accrualTimestamp;
     uint256 private _expIndex;
+    uint256 private _expReferralIndex;
 
     mapping (address => uint256) private _holderIndex;
-    mapping (address => address) private _parentRef;
-    mapping (address => address[]) private _referrals;
+    mapping (address => ParentRef) private _parentRef;
+    mapping (address => Referral[]) private _referrals;
 
     modifier onlyExchange () {
         require(_msgSender() == address(_exchangeAddress), "caller is not allowed to do some");
@@ -34,6 +46,7 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         _dailyInterest = 200_000_000_000_000; // +0.02%
         _referralInterest = 100_000_000_000_000; // +0.01%
         _expIndex = 10 ** 18;
+        _expReferralIndex = 10 ** 18;
         _accrualTimestamp = block.timestamp;
     }
 
@@ -70,16 +83,22 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     }
 
     function parentReferral(address user) external view override returns (address) {
-        return _parentRef[user];
+        return _parentRef[user].user;
     }
 
     function setParentReferral(address user, address parent, uint256 reward) external override onlyExchange {
         require(parent != _reserveAddress &&
                 parent != _exchangeAddress &&
                 parent != owner(), "Wrong referral");
-        _parentRef[user] = parent;
+        _updateBalance(parent);
+        _parentRef[user].user = parent;
+        _parentRef[user].index = _referrals[parent].length;
+        Referral memory referral = Referral(user, _expReferralIndex, _balances[user]);
+        _referrals[parent].push(referral);
         _balances[parent] = _balances[parent].add(reward);
-        _referrals[parent].push(user);
+        if (_parentRef[parent].user != address(0)) {
+            _referrals[_parentRef[parent].user][_parentRef[parent].index].balance = _balances[parent];
+        }
     }
 
     function balanceOf(address account) public view override returns (uint256) {
@@ -88,39 +107,60 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
             account == _exchangeAddress) {
             return super.balanceOf(account);
         }
-        if (_balances[account] > 0 && _holderIndex[account] > 0) {
-            uint256 newExpIndex = _calculateInterest(block.timestamp);
-            return _balances[account].mul(newExpIndex).div(_holderIndex[account]); // balance * newExpIndex / holderIndex
+        uint256 bonus = 0;
+        for(uint256 i = 0; i < _referrals[account].length; ++i) {
+            Referral memory referral = _referrals[account][i];
+            uint256 newBalanceOfPartner = referral.balance.mul(_expIndex).div(_holderIndex[referral.user]);
+            uint256 bonusBalance = newBalanceOfPartner.mul(_expReferralIndex).div(referral.expIndex);
+            uint256 partnerBonus = bonusBalance.sub(newBalanceOfPartner);
+            bonus = bonus.add(partnerBonus);
         }
-        return super.balanceOf(account);
+        if (_balances[account] > 0 && _holderIndex[account] > 0) {
+            uint256 newExpIndex = _calculateInterest(block.timestamp, _dailyInterest, _expIndex);
+            return _balances[account].mul(newExpIndex).div(_holderIndex[account]).add(bonus); // (balance * newExpIndex / holderIndex) + ref.bonus
+        }
+        return super.balanceOf(account).add(bonus);
     }
 
     function accrueInterest() public {
-        _expIndex = _calculateInterest(block.timestamp);
+        _expIndex = _calculateInterest(block.timestamp, _dailyInterest, _expIndex);
+        _expReferralIndex = _calculateInterest(block.timestamp, _referralInterest, _expReferralIndex);
         _accrualTimestamp = block.timestamp;
     }
 
-    function _calculateInterest(uint256 timestampNow) internal view returns (uint256) {
+    function _calculateInterest(uint256 timestampNow, uint256 interest, uint256 prevIndex) internal view returns (uint256) {
         uint256 period = timestampNow.sub(_accrualTimestamp);
-        uint256 interestFactor = _dailyInterest.mul(period);
-        uint newExpIndex = (interestFactor.mul(_expIndex).div(10 ** 18).div(86400)).add(_expIndex);
+        uint256 interestFactor = interest.mul(period);
+        uint newExpIndex = (interestFactor.mul(prevIndex).div(10 ** 18).div(86400)).add(prevIndex);
         return newExpIndex;
     }
 
     function _updateBalance(address account) internal {
+        if (account == _reserveAddress ||
+            account == owner() ||
+            account == _exchangeAddress) {
+            return ;
+        }
         if (_balances[account] > 0 && _holderIndex[account] > 0) {
             uint256 newBalance = _balances[account].mul(_expIndex).div(_holderIndex[account]); // balance * expIndex / holderIndex
             uint256 delta = newBalance.sub(_balances[account]);
             for(uint256 i = 0; i < _referrals[account].length; ++i) {
-                uint256 newBalanceOfPartner = _balances[_referrals[account][i]].mul(_expIndex).div(_holderIndex[_referrals[account][i]]); // balance * expIndex / holderIndex
-                uint256 partnerBonus = newBalanceOfPartner.sub(_balances[_referrals[account][i]]).mul(_referralInterest).div(_dailyInterest); // TODO: check that
+                Referral memory referral = _referrals[account][i];
+                uint256 newBalanceOfPartner = referral.balance.mul(_expIndex).div(_holderIndex[referral.user]);
+                uint256 bonusBalance = newBalanceOfPartner.mul(_expReferralIndex).div(referral.expIndex);
+                uint256 partnerBonus = bonusBalance.sub(newBalanceOfPartner);
                 newBalance = newBalance.add(partnerBonus);
                 delta = delta.add(partnerBonus);
-                _updateBalance(_referrals[account][i]);
+                _referrals[account][i].expIndex = _expReferralIndex;
+                _referrals[account][i].balance = newBalanceOfPartner;
             }
             if (delta != 0 && _balances[_reserveAddress] >= delta) {
                 _balances[account] = newBalance;
                 _balances[_reserveAddress] = _balances[_reserveAddress].sub(delta);
+                if (_parentRef[account].user != address(0)) {
+                    _referrals[_parentRef[account].user][_parentRef[account].index].balance = newBalance;
+                    _referrals[_parentRef[account].user][_parentRef[account].index].expIndex = _expReferralIndex;
+                }
             }
         }
         _holderIndex[account] = _expIndex;
@@ -129,18 +169,8 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
         accrueInterest();
         if (from != address(0)) {
-            if (from != _reserveAddress &&
-                from != owner() &&
-                from != _exchangeAddress
-            ) {
-                _updateBalance(from);
-            }
-            if (to != _reserveAddress &&
-                to != owner() &&
-                to != _exchangeAddress
-            ) {
-                _updateBalance(to);
-            }
+            _updateBalance(from);
+            _updateBalance(to);
         }
         super._beforeTokenTransfer(from, to, amount);
     }
