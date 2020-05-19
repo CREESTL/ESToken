@@ -26,6 +26,7 @@ contract Exchange is ExchangeInterface, Ownable {
     struct TokenEntity {
         uint256 reservedBalance;
         Order[] orders;
+        mapping(uint256 => uint256) indexes; // uid -> index
     }
 
     struct OrderBook {
@@ -74,14 +75,14 @@ contract Exchange is ExchangeInterface, Ownable {
     }
 
     function getMyOrders () external view returns (uint256[] memory) {
-        Order[] memory myESTTOrders = _ledger[_msgSender()][address(_ESTT)].orders;
-        Order[] memory myUSDTOrders = _ledger[_msgSender()][address(_USDT)].orders;
-        uint256[] memory myOrderUids = new uint256[](myESTTOrders.length + myUSDTOrders.length);
-        for (uint256 i = 0; i < myESTTOrders.length; ++i) {
-            myOrderUids[i] = myESTTOrders[i].uid;
+        uint256 lengthESTT = _ledger[_msgSender()][address(_ESTT)].orders.length;
+        uint256 lengthUSDT = _ledger[_msgSender()][address(_USDT)].orders.length;
+        uint256[] memory myOrderUids = new uint256[](lengthESTT + lengthUSDT);
+        for (uint256 i = 0; i < lengthESTT; ++i) {
+            myOrderUids[i] = _ledger[_msgSender()][address(_ESTT)].orders[i].uid;
         }
-        for (uint256 i = 0; i < myUSDTOrders.length; ++i) {
-            myOrderUids[i + myESTTOrders.length] = myUSDTOrders[i].uid;
+        for (uint256 i = 0; i < lengthUSDT; ++i) {
+            myOrderUids[i + lengthESTT] = _ledger[_msgSender()][address(_USDT)].orders[i].uid;
         }
         return myOrderUids;
     }
@@ -116,6 +117,8 @@ contract Exchange is ExchangeInterface, Ownable {
         require(_orderCheck(order), "wrong params");
         _ledger[_msgSender()][src].reservedBalance = _ledger[_msgSender()][src].reservedBalance.add(srcAmount);
         if(_trade(order) > 0) {
+            uint256 length = _ledger[order.trader][src].orders.length;
+            _ledger[order.trader][src].indexes[length] = order.uid;
             _ledger[order.trader][src].orders.push(order);
             uint256 price = _getPrice(order, true);
             _insertOrderToPriceIndex(_orderBooks[src], order.uid, price);
@@ -159,30 +162,14 @@ contract Exchange is ExchangeInterface, Ownable {
     function _getOrderByUid (uint256 uid) internal view returns (Order memory) {
         (ErrorType error, uint256 id, address tokenSrcAddress, address user) = _unpackUid(uid);
         require(error == ErrorType.None && id <= _lastUid, "Wrong Uid");
-        uint256 length = _ledger[user][tokenSrcAddress].orders.length;
-        uint256 index = length; // TODO: refactor me
-        for (uint256 i = 0; i < length; ++i) {
-            if (_ledger[user][tokenSrcAddress].orders[i].uid == uid) {
-                index = i;
-                break;
-            }
-        }
-        require(index < length, "order not found");
+        uint256 index = _ledger[user][tokenSrcAddress].indexes[uid];
         return _ledger[user][tokenSrcAddress].orders[index];
     }
 
     function _getStorageOrderByUid (uint256 uid) internal view returns (Order storage) {
         (ErrorType error, uint256 id, address tokenSrcAddress, address user) = _unpackUid(uid);
         require(error == ErrorType.None && id <= _lastUid, "Wrong Uid");
-        uint256 length = _ledger[user][tokenSrcAddress].orders.length;
-        uint256 index = length; // TODO: refactor me
-        for (uint256 i = 0; i < length; ++i) {
-            if (_ledger[user][tokenSrcAddress].orders[i].uid == uid) {
-                index = i;
-                break;
-            }
-        }
-        require(index < length, "order not found");
+        uint256 index = _ledger[user][tokenSrcAddress].indexes[uid];
         return _ledger[user][tokenSrcAddress].orders[index];
     }
 
@@ -228,15 +215,14 @@ contract Exchange is ExchangeInterface, Ownable {
         require(error == ErrorType.None, "_removeOrder: Wrong Uid");
         require(id <= _lastUid, "Wrong Uid");
         uint256 length = _ledger[user][tokenSrcAddress].orders.length;
-        for (uint256 i = 0; i < length; ++i) {
-            if (_ledger[user][tokenSrcAddress].orders[i].uid == uid) {
-                if (i != length.sub(1)) {
-                    _ledger[user][tokenSrcAddress].orders[i] = _ledger[user][tokenSrcAddress].orders[length.sub(1)];
-                }
-                break;
-            }
+        uint256 index = _ledger[user][tokenSrcAddress].indexes[uid];
+        if (index != length.sub(1)) {
+            _ledger[user][tokenSrcAddress].orders[index] = _ledger[user][tokenSrcAddress].orders[length.sub(1)];
+            uint256 lastOrderUid = _ledger[user][tokenSrcAddress].orders[length.sub(1)].uid;
+            _ledger[user][tokenSrcAddress].indexes[lastOrderUid] = index;
         }
         _ledger[user][tokenSrcAddress].orders.pop();
+        delete  _ledger[user][tokenSrcAddress].indexes[uid];
     }
 
     function _removeOrderFromOrderBook (uint256 uid, address srcToken, uint256 price) internal {
@@ -284,14 +270,14 @@ contract Exchange is ExchangeInterface, Ownable {
         (ERC20 orderToken, ERC20 oppositeToken) = _getERC20ByUid(order.uid);
         uint256 neededOrder = order.srcAmount.sub(order.filled);
         uint256 fee;
-        if (address(orderToken) == _ESTT) {
+        if (address(orderToken) == address(_ESTT)) {
             fee = neededOrder.mul(EXCHANGE_FEE).div(10 ** 18);
             neededOrder = neededOrder.sub(fee);
         }
         uint256 availableOpposite = (opposite.srcAmount.sub(opposite.filled)).mul(price).div(10 ** uint256(oppositeToken.decimals()));
         if (neededOrder > availableOpposite) {
             neededOrder = availableOpposite;
-            fee = neededOrder.mul(EXCHANGE_FEE).div((10 ** 18).sub(EXCHANGE_FEE)); // fee = availableOpposite * EXCHANGE_FEE / (1 - EXCHANGE_FEE)
+            fee = neededOrder.mul(EXCHANGE_FEE).div(10 ** 18 - EXCHANGE_FEE); // fee = availableOpposite * EXCHANGE_FEE / (1 - EXCHANGE_FEE)
         }
 
         uint256 neededOpposite = neededOrder.mul(10 ** uint256(oppositeToken.decimals())).div(price);
