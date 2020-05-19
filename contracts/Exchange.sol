@@ -37,10 +37,11 @@ contract Exchange is ExchangeInterface, Ownable {
 
     enum ErrorType { None, WrongUid }
 
+    address constant private RESERVE_ADDRESS = 0x0000000000000000000000000000000000000001;
     uint8 constant private ESTT_2_USDT = 1;
     uint8 constant private USDT_2_ESTT = 2;
     uint256 constant private REFERRAL_BONUS = 500_000_000_000_000; // +0.05%
-    uint256 constant private EXCHANGE_FEE = 8_000_000_000_000_000; // 0.8% // TODO: not implemented
+    uint256 constant private EXCHANGE_FEE = 8_000_000_000_000_000; // 0.8% fee from estt->usdt tx
 
     mapping(address => OrderBook) private _orderBooks; // srcToken -> OrderBook
     mapping(uint256 => address) private _usersAddresses; // uint32(address) -> address
@@ -124,7 +125,9 @@ contract Exchange is ExchangeInterface, Ownable {
             esttInerface.parentReferral(_msgSender()) == address(0) &&
             src == address(_USDT)
         ) {
-            esttInerface.setParentReferral(_msgSender(), referral, order.filled.mul(REFERRAL_BONUS).div(10 ** 18));
+            uint256 price = _getPrice(order, true);
+            uint256 orderBonus = order.filled.mul(price).div(10 ** uint256(_USDT.decimals()));
+            esttInerface.setParentReferral(_msgSender(), referral, orderBonus.mul(REFERRAL_BONUS).div(10 ** 18));
         }
     }
 
@@ -280,20 +283,30 @@ contract Exchange is ExchangeInterface, Ownable {
     {
         (ERC20 orderToken, ERC20 oppositeToken) = _getERC20ByUid(order.uid);
         uint256 neededOrder = order.srcAmount.sub(order.filled);
+        uint256 fee;
+        if (address(orderToken) == _ESTT) {
+            fee = neededOrder.mul(EXCHANGE_FEE).div(10 ** 18);
+            neededOrder = neededOrder.sub(fee);
+        }
         uint256 availableOpposite = (opposite.srcAmount.sub(opposite.filled)).mul(price).div(10 ** uint256(oppositeToken.decimals()));
-        if (neededOrder > availableOpposite)
+        if (neededOrder > availableOpposite) {
             neededOrder = availableOpposite;
+            fee = neededOrder.mul(EXCHANGE_FEE).div((10 ** 18).sub(EXCHANGE_FEE)); // fee = availableOpposite * EXCHANGE_FEE / (1 - EXCHANGE_FEE)
+        }
 
         uint256 neededOpposite = neededOrder.mul(10 ** uint256(oppositeToken.decimals())).div(price);
 
         require(orderToken.allowance(order.trader, address(this)) >= neededOrder, "src not enough balance");
         require(oppositeToken.allowance(opposite.trader, address(this)) >= neededOpposite, "dest not enough balance");
-        _ledger[order.trader][address(orderToken)].reservedBalance = _ledger[order.trader][address(orderToken)].reservedBalance.sub(neededOrder);
+
+        _ledger[order.trader][address(orderToken)].reservedBalance = _ledger[order.trader][address(orderToken)].reservedBalance.sub(neededOrder.add(fee));
         _ledger[opposite.trader][address(oppositeToken)].reservedBalance = _ledger[opposite.trader][address(oppositeToken)].reservedBalance.sub(neededOpposite);
+
         orderToken.transferFrom(order.trader, opposite.trader, neededOrder);
+        orderToken.transferFrom(order.trader, RESERVE_ADDRESS, fee);
         oppositeToken.transferFrom(opposite.trader, order.trader, neededOpposite);
 
-        order.filled = order.filled.add(neededOrder);
+        order.filled = order.filled.add(neededOrder.add(fee));
         opposite.filled = opposite.filled.add(neededOpposite);
     }
 
