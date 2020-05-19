@@ -174,4 +174,41 @@ contract('Exchange', async ([owner, alice, bob]) => {
       (await this.usdt.balanceOf(bob, { from: bob })).should.be.bignumber.equal(ether('5'));
     });
   });
+
+  describe('Tests of main trade methods', async () => {
+    beforeEach(async () => {
+      await this.estt.transfer(alice, new BN('400000000'), { from: owner }); // 400 estt
+      await this.estt.approve(this.exchange.address, new BN('400000000'), { from: alice }); // 400 estt
+      await this.exchange.trade(this.estt.address, new BN('100000000'), this.usdt.address, ether('1'), ZERO_ADDRESS, { from: alice }); // 100 estt -> 1 usdt
+      await this.exchange.trade(this.estt.address, new BN('100000000'), this.usdt.address, ether('1'), ZERO_ADDRESS, { from: alice }); // 100 estt -> 1 usdt
+      await this.exchange.trade(this.estt.address, new BN('100000000'), this.usdt.address, ether('2'), ZERO_ADDRESS, { from: alice }); // 100 estt -> 2 usdt
+      await this.exchange.trade(this.estt.address, new BN('100000000'), this.usdt.address, ether('1'), ZERO_ADDRESS, { from: alice }); // 100 estt -> 1 usdt
+    });
+
+    it('should add referral bonus', async () => {
+      await this.usdt.transfer(alice, ether('5'), { from: owner }); // 5 usdt
+      await this.usdt.approve(this.exchange.address, ether('5'), { from: alice }); // 5 usdt
+      await this.exchange.trade(this.usdt.address, ether('1'), this.estt.address, new BN('100000000'), bob, { from: alice }); // 1 usdt -> 100 estt
+      (await this.estt.balanceOf(bob, { from: bob })).should.be.bignumber.equal(new BN('50000'));
+      await time.increase(new BN('86400'));
+      const balance_bob_1 = await this.estt.balanceOf(bob, { from: bob });
+      balance_bob_1.should.be.bignumber.lt(new BN('50011'));
+      balance_bob_1.should.be.bignumber.gt(new BN('50008'));
+      await time.increase(new BN('86400'));
+      const balance_bob_2 = await this.estt.balanceOf(bob, { from: bob });
+      balance_bob_2.should.be.bignumber.lt(new BN('50021'));
+      balance_bob_2.should.be.bignumber.gt(new BN('50017'));
+      await time.increase(new BN('86400'));
+      const balance_bob_3 = await this.estt.balanceOf(bob, { from: bob });
+      balance_bob_3.should.be.bignumber.lt(new BN('50031'));
+      balance_bob_3.should.be.bignumber.gt(new BN('50026'));
+      const balance_alice_1 = await this.estt.balanceOf(alice, { from: alice });
+      balance_alice_1.should.be.bignumber.lt(new BN('400241000'));
+      balance_alice_1.should.be.bignumber.gt(new BN('400239000'));
+      await this.estt.transfer(alice, balance_bob_3, { from: bob });
+      const balance_alice_2 = await this.estt.balanceOf(alice, { from: alice });
+      balance_alice_2.should.be.bignumber.lt(new BN('400291000'));
+      balance_alice_2.should.be.bignumber.gt(new BN('400289000'));
+    });
+  });
 });
