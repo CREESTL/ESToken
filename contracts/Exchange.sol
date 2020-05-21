@@ -218,6 +218,9 @@ contract Exchange is ExchangeInterface, Ownable {
                 destKey = destOrderBook.tree.next(destKey);
         }
 
+        if (max_price == (10 ** uint256(order.src.decimals()))) {
+            _match1to1(order, max_price);
+        }
         return order.srcAmount.sub(order.filled);
     }
 
@@ -277,10 +280,13 @@ contract Exchange is ExchangeInterface, Ownable {
     function _orderCheck (MemoryOrder memory order) internal view returns (bool) {
         address src = address(order.src);
         address dest = address(order.dest);
+        uint256 price = _getPrice(order, false);
         if (src == address(_ESTT)) {
-            require(dest == address(_USDT), "wrong dest"); // TODO: add require 1:1
+            require(dest == address(_USDT), "wrong dest");
+            require(price <= (10 ** uint256(_ESTT.decimals())), "ESTT can't be cheaper USDT");
         } else if (src == address(_USDT)) {
-            require(dest == address(_ESTT), "wrong dest"); // TODO: add require 1:1
+            require(dest == address(_ESTT), "wrong dest");
+            require(price >= (10 ** uint256(_USDT.decimals())), "ESTT can't be cheaper USDT");
         } else {
             revert("wrong src");
         }
@@ -328,6 +334,34 @@ contract Exchange is ExchangeInterface, Ownable {
         opposite.filled = opposite.filled.add(neededOpposite);
     }
 
+    function _match1to1 (MemoryOrder memory order, uint256 price) internal {
+        uint256 neededOrder = order.srcAmount.sub(order.filled);
+        uint256 fee = 0;
+        if (address(order.src) == address(_ESTT)) {
+            fee = neededOrder.mul(EXCHANGE_FEE).div(10 ** 18); // fee = neededOrder * EXCHANGE_FEE / 10**18
+            neededOrder = neededOrder.sub(fee);
+        }
+        uint256 availableOpposite = (order.dest.balanceOf(address(this))).mul(price).div(10 ** uint256(order.dest.decimals()));
+        if (neededOrder > availableOpposite) {
+            neededOrder = availableOpposite;
+            fee = neededOrder.mul(EXCHANGE_FEE).div(10 ** 18 - EXCHANGE_FEE); // fee = availableOpposite * EXCHANGE_FEE / (10**18 - EXCHANGE_FEE)
+        }
+
+        uint256 neededOpposite = neededOrder.mul(10 ** uint256(order.dest.decimals())).div(price);
+
+        require(order.src.allowance(order.trader, address(this)) >= neededOrder, "src not enough balance");
+
+        _ledger[order.trader][address(order.src)].reservedBalance = _ledger[order.trader][address(order.src)].reservedBalance.sub(neededOrder.add(fee));
+
+        order.src.transferFrom(order.trader, address(this), neededOrder);
+        if (fee > 0) {
+            order.src.transferFrom(order.trader, RESERVE_ADDRESS, fee);
+        }
+        order.dest.transfer(order.trader, neededOpposite);
+
+        order.filled = order.filled.add(neededOrder.add(fee));
+    }
+
     function _packUid (uint256 index, address tokenSrc, address userAddress) internal view returns (uint256) {
         uint8 tradeType = tokenSrc == address(_ESTT) ? ESTT_2_USDT : USDT_2_ESTT;
         return index << 40 | (uint64(tradeType) << 32) | uint32(userAddress);
@@ -350,14 +384,22 @@ contract Exchange is ExchangeInterface, Ownable {
 
     function _getPrice(MemoryOrder memory order, bool invertFlag) internal view returns (uint256) {
         if (!invertFlag) {
-            uint256 decimals = address(order.src) == address(_ESTT) ?
+            uint256 decimals = address(order.src) == address(_ESTT) ?  // dest decimals
                 10 ** uint256(_USDT.decimals()) :
                 10 ** uint256(_ESTT.decimals());
             return order.srcAmount.mul(decimals).div(order.destAmount);
         }
-        uint256 decimals = address(order.src) == address(_ESTT) ?
+        uint256 decimals = address(order.src) == address(_ESTT) ?  // src decimals
             10 ** uint256(_ESTT.decimals()) :
             10 ** uint256(_USDT.decimals());
         return order.destAmount.mul(decimals).div(order.srcAmount);
     }
+//
+//    // TODO: debug only, remove it
+//    function getPrice(address src, uint256 srcAmount, uint256 destAmount) external view returns (uint256) {
+//        uint256 decimals = address(src) == address(_ESTT) ?  // dest decimals
+//        10 ** uint256(_USDT.decimals()) :
+//        10 ** uint256(_ESTT.decimals());
+//        return srcAmount.mul(decimals).div(destAmount);
+//    }
 }
