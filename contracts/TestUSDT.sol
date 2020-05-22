@@ -8,3 +8,10 @@ contract USDToken is ERC20 {
         _mint(_msgSender(), 250_000_000 * 10 ** uint256(decimals()));
     }
 }
+
+contract USDToken6 is ERC20 {
+    constructor () public ERC20("USDToken", "USDT") {
+        _setupDecimals(6);
+        _mint(_msgSender(), 250_000_000 * 10 ** uint256(decimals()));
+    }
+}

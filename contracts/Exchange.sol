@@ -198,18 +198,18 @@ contract Exchange is ExchangeInterface, Ownable {
                     uint256 uid = destOrderBook.uids[destKey][0];
                     (address src, address user, uint256 index) = _unpackUid(uid);
                     Order storage opposite = _ledger[user][src].orders[index];
-                    _match(order, opposite, destKey);
-                    if (opposite.filled == opposite.srcAmount) {
+                    bool badOpposite = _match(order, opposite, destKey);
+                    if (opposite.filled == opposite.srcAmount || !badOpposite) {
                         nextKey = destOrderBook.tree.next(destKey);
                         _removeOrder(destOrderBook.uids[destKey][0], address(order.dest), opposite.trader);
                         _removeOrderFromPriceIndex(destOrderBook, 0, destKey);
                     }
-                    if (order.filled == order.srcAmount || gasleft() < 500000) {
+                    if (order.filled == order.srcAmount || gasleft() < 200000) {
                         return order.srcAmount.sub(order.filled);
                     }
                 }
             }
-            if (order.filled == order.srcAmount || gasleft() < 500000) {
+            if (order.filled == order.srcAmount || gasleft() < 200000) {
                 return order.srcAmount.sub(order.filled);
             }
             if (nextKey > 0)
@@ -302,7 +302,7 @@ contract Exchange is ExchangeInterface, Ownable {
         MemoryOrder memory order,   // estt/usdt
         Order storage opposite,     // usdt/estt
         uint256 price
-    ) internal
+    ) internal returns (bool)
     {
         uint256 neededOrder = order.srcAmount.sub(order.filled);
         uint256 fee = 0;
@@ -319,7 +319,9 @@ contract Exchange is ExchangeInterface, Ownable {
         uint256 neededOpposite = neededOrder.mul(10 ** uint256(order.dest.decimals())).div(price);
 
         require(order.src.allowance(order.trader, address(this)) >= neededOrder, "src not enough balance");
-        require(order.dest.allowance(opposite.trader, address(this)) >= neededOpposite, "dest not enough balance");
+        if (order.dest.allowance(opposite.trader, address(this)) < neededOpposite) {
+            return false;
+        }
 
         _ledger[order.trader][address(order.src)].reservedBalance = _ledger[order.trader][address(order.src)].reservedBalance.sub(neededOrder.add(fee));
         _ledger[opposite.trader][address(order.dest)].reservedBalance = _ledger[opposite.trader][address(order.dest)].reservedBalance.sub(neededOpposite);
@@ -332,6 +334,8 @@ contract Exchange is ExchangeInterface, Ownable {
 
         order.filled = order.filled.add(neededOrder.add(fee));
         opposite.filled = opposite.filled.add(neededOpposite);
+
+        return true;
     }
 
     function _match1to1 (MemoryOrder memory order, uint256 price) internal {
@@ -394,12 +398,4 @@ contract Exchange is ExchangeInterface, Ownable {
             10 ** uint256(_USDT.decimals());
         return order.destAmount.mul(decimals).div(order.srcAmount);
     }
-//
-//    // TODO: debug only, remove it
-//    function getPrice(address src, uint256 srcAmount, uint256 destAmount) external view returns (uint256) {
-//        uint256 decimals = address(src) == address(_ESTT) ?  // dest decimals
-//        10 ** uint256(_USDT.decimals()) :
-//        10 ** uint256(_ESTT.decimals());
-//        return srcAmount.mul(decimals).div(destAmount);
-//    }
 }
