@@ -86,7 +86,7 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         return _parentRef[user].user;
     }
 
-    function setParentReferral(address user, address parent, uint256 reward) external override onlyExchange {
+    function setParentReferral(address user, address parent, uint256 reward) external override {
         require(parent != _reserveAddress &&
                 parent != _exchangeAddress &&
                 parent != owner(), "Wrong referral");
@@ -101,6 +101,15 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         }
     }
 
+    function getMyReferrals() public view returns (address[] memory) {
+        uint256 length = _referrals[_msgSender()].length;
+        address[] memory addresses = new address[](length);
+        for (uint i = 0; i < length; ++i) {
+            addresses[i] = _referrals[_msgSender()][i].user;
+        }
+        return addresses;
+    }
+
     function balanceOf(address account) public view override returns (uint256) {
         if (account == _reserveAddress ||
             account == owner() ||
@@ -109,9 +118,10 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         }
         uint256 bonus = 0;
         for(uint256 i = 0; i < _referrals[account].length; ++i) {
+            uint256 newExpReferralIndex = _calculateInterest(block.timestamp, _referralInterest, _expReferralIndex);
             Referral memory referral = _referrals[account][i];
             uint256 newBalanceOfPartner = referral.balance.mul(_expIndex).div(_holderIndex[referral.user]);
-            uint256 bonusBalance = newBalanceOfPartner.mul(_expReferralIndex).div(referral.expIndex);
+            uint256 bonusBalance = newBalanceOfPartner.mul(newExpReferralIndex).div(referral.expIndex);
             uint256 partnerBonus = bonusBalance.sub(newBalanceOfPartner);
             bonus = bonus.add(partnerBonus);
         }
@@ -141,18 +151,18 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
             account == _exchangeAddress) {
             return ;
         }
-        if (_balances[account] > 0 && _holderIndex[account] > 0) {
+        if (_holderIndex[account] > 0) {
             uint256 newBalance = _balances[account].mul(_expIndex).div(_holderIndex[account]); // balance * expIndex / holderIndex
             uint256 delta = newBalance.sub(_balances[account]);
             for(uint256 i = 0; i < _referrals[account].length; ++i) {
-                Referral memory referral = _referrals[account][i];
+                Referral storage referral = _referrals[account][i];
                 uint256 newBalanceOfPartner = referral.balance.mul(_expIndex).div(_holderIndex[referral.user]);
                 uint256 bonusBalance = newBalanceOfPartner.mul(_expReferralIndex).div(referral.expIndex);
                 uint256 partnerBonus = bonusBalance.sub(newBalanceOfPartner);
                 newBalance = newBalance.add(partnerBonus);
                 delta = delta.add(partnerBonus);
-                _referrals[account][i].expIndex = _expReferralIndex;
-                _referrals[account][i].balance = newBalanceOfPartner;
+                referral.expIndex = _expReferralIndex;
+                referral.balance = newBalanceOfPartner;
             }
             if (delta != 0 && _balances[_reserveAddress] >= delta) {
                 _balances[account] = newBalance;
