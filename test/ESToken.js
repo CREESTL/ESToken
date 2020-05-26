@@ -105,6 +105,7 @@ contract('ESToken', async ([owner, alice, bob]) => {
       const balance_alice_2 = await this.esToken.balanceOf(alice);
       balance_alice_2.should.be.bignumber.equal(new BN('0'));
     });
+
     it('should right calculate compound interest', async () =>  {
       // first try
       await this.esToken.transfer(alice, new BN('1000000000000'), { from: owner });
@@ -138,6 +139,19 @@ contract('ESToken', async ([owner, alice, bob]) => {
       await this.esToken.transfer(owner, balance_bob_2, { from: bob });
       (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.lt(new BN('24996000000000')); // -4_001.000000
       (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.gt(new BN('24995998000000'));
+    });
+
+    it('should right calculate holders counter', async () => {
+      (await this.esToken.holdersCounter({ from: alice })).should.be.bignumber.equal(new BN('3'));
+      await this.esToken.transfer(alice, new BN('1000000000000'), { from: owner });
+      (await this.esToken.holdersCounter({ from: alice })).should.be.bignumber.equal(new BN('4'));
+      await this.esToken.transfer(alice, new BN('1000000000000'), { from: owner });
+      (await this.esToken.holdersCounter({ from: alice })).should.be.bignumber.equal(new BN('4'));
+      await this.esToken.transfer(bob, new BN('1000000000000'), { from: owner });
+      (await this.esToken.holdersCounter({ from: alice })).should.be.bignumber.equal(new BN('5'));
+      await this.esToken.transfer(alice, new BN('1000000000000'), { from: bob });
+      (await this.esToken.balanceOf(bob)).should.be.bignumber.equal(new BN('0'));
+      (await this.esToken.holdersCounter({ from: alice })).should.be.bignumber.equal(new BN('4'));
     });
   });
 });

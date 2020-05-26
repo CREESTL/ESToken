@@ -31,6 +31,7 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     uint256 private _accrualTimestamp;
     uint256 private _expIndex;
     uint256 private _expReferralIndex;
+    uint256 private _holdersCounter;
 
     mapping (address => uint256) private _holderIndex;
     mapping (address => ParentRef) private _parentRef;
@@ -84,6 +85,10 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
 
     function parentReferral(address user) external view override returns (address) {
         return _parentRef[user].user;
+    }
+
+    function holdersCounter() external view returns (uint256) {
+        return _holdersCounter;
     }
 
     function setParentReferral(address user, address parent, uint256 reward) external override {
@@ -165,6 +170,9 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
                 referral.balance = newBalanceOfPartner;
             }
             if (delta != 0 && _balances[_reserveAddress] >= delta) {
+                if (_balances[account] == 0) {
+                    _holdersCounter++;
+                }
                 _balances[account] = newBalance;
                 _balances[_reserveAddress] = _balances[_reserveAddress].sub(delta);
                 if (_parentRef[account].user != address(0)) {
@@ -181,6 +189,12 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         if (from != address(0)) {
             _updateBalance(from);
             _updateBalance(to);
+        }
+        if (_balances[from] == amount) {
+            _holdersCounter--;
+        }
+        if (_balances[to] == 0) {
+            _holdersCounter++;
         }
         super._beforeTokenTransfer(from, to, amount);
     }
