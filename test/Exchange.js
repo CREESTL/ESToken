@@ -18,7 +18,7 @@ const USDToken = artifacts.require('USDToken');
 
 const assertEqual = (a, b) => assert.isTrue(Object.is(a, b), `Expected ${a.toString()} to equal ${b.toString()}`);
 
-contract('Exchange', async ([owner, alice, bob]) => {
+contract('Exchange', async ([owner, alice, bob, carol]) => {
 
   beforeEach(async () => {
     this.estt = await ESToken.new({from: owner});
@@ -268,6 +268,23 @@ contract('Exchange', async ([owner, alice, bob]) => {
       const balance_alice_2 = await this.estt.balanceOf(alice, { from: alice });
       balance_alice_2.should.be.bignumber.lt(new BN('100140040'));
       balance_alice_2.should.be.bignumber.gt(new BN('100139990'));
+      const referrals = await this.estt.getMyReferrals({ from: bob });
+      assertEqual(referrals.length, 1);
+      (referrals[0]).should.be.equal(alice);
     });
+
+    // it('test crash', async () => {
+    //   await this.usdt.transfer(alice, ether('100'), { from: owner });
+    //   await this.usdt.approve(this.exchange.address, ether('100'), { from: alice });
+    //   await this.estt.accrueInterest();
+    //   await this.estt.accrueInterest();
+    //   await this.estt.accrueInterest();
+    //   await this.estt.accrueInterest();
+    //   await this.estt.accrueInterest();
+    //   await this.estt.accrueInterest();
+    //   await this.exchange.trade(this.usdt.address, ether('100'), this.estt.address, new BN('100000000'), carol, { from: alice }); // 100 usdt -> 100 estt
+    //   const balance_carol = await this.estt.balanceOf(carol, { from: bob });
+    //   (balance_carol).should.be.bignumber.equal(new BN('50000'));
+    // });
   });
 });
