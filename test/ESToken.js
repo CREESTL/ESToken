@@ -9,6 +9,7 @@ require('chai')
   .use(require('chai-as-promised'))
   .should();
 
+
 const { ZERO_ADDRESS } = constants;
 
 const ESToken = artifacts.require('ESToken');

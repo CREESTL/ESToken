@@ -4,7 +4,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "../BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
-import "./ESToken.sol";
 import "./Interfaces.sol";
 
 
@@ -26,9 +25,9 @@ contract Exchange is ExchangeInterface, Ownable {
         // 32 bits for user, 8 bits for type, 186 for order uid (0x<186><8><32>)
         uint256 uid;
         address trader;
-        ERC20 src;
+        IERC20 src;
         uint256 srcAmount;
-        ERC20 dest;
+        IERC20 dest;
         uint256 destAmount;
         uint256 filled;
     }
@@ -56,16 +55,16 @@ contract Exchange is ExchangeInterface, Ownable {
     mapping(uint256 => address) private _usersAddresses; // uint32(address) -> address
     mapping(address => mapping(address => TokenEntity)) private _ledger; // user, ESTT/USDT pair => TokenEntity
 
-    ERC20 private _ESTT;
-    ERC20 private _USDT;
+    IERC20 private _ESTT;
+    IERC20 private _USDT;
 
     uint192 private _lastUid;
 
     constructor (address esttAddress, address usdtAddress) public {
         ESTokenInterface potentialESTT = ESTokenInterface(esttAddress);
         require(potentialESTT.isESToken(), "Exchange: address does not match the ESTT");
-        _ESTT = ERC20(esttAddress);
-        ERC20 potentialUSDT = ESToken(usdtAddress);
+        _ESTT = IERC20(esttAddress);
+        IERC20 potentialUSDT = IERC20(usdtAddress);
         require(potentialUSDT.decimals() > 0, "Exchange: address does not match the USDT");
         _USDT = potentialUSDT;
     }
@@ -116,9 +115,9 @@ contract Exchange is ExchangeInterface, Ownable {
         MemoryOrder memory order = MemoryOrder(
             _packUid(_lastUid, src, _msgSender()),
             _msgSender(),
-            ERC20(src),
+            IERC20(src),
             srcAmount,
-            ERC20(dest),
+            IERC20(dest),
             destAmount,
             0
         );
@@ -144,9 +143,9 @@ contract Exchange is ExchangeInterface, Ownable {
 //        MemoryOrder memory order = MemoryOrder(
 //            storageOrder.uid,
 //            storageOrder.trader,
-//            ERC20(tokenSrcAddress),
+//            IERC20(tokenSrcAddress),
 //            storageOrder.srcAmount,
-//            tokenSrcAddress == address(_ESTT)? ERC20(_USDT) : ERC20(_ESTT),
+//            tokenSrcAddress == address(_ESTT)? IERC20(_USDT) : IERC20(_ESTT),
 //            storageOrder.destAmount,
 //            storageOrder.filled
 //        );
@@ -168,9 +167,9 @@ contract Exchange is ExchangeInterface, Ownable {
         MemoryOrder memory order = MemoryOrder(
             storageOrder.uid,
             storageOrder.trader,
-            ERC20(tokenSrcAddress),
+            IERC20(tokenSrcAddress),
             storageOrder.srcAmount,
-            tokenSrcAddress == address(_ESTT)? ERC20(_USDT) : ERC20(_ESTT),
+            tokenSrcAddress == address(_ESTT)? IERC20(_USDT) : IERC20(_ESTT),
             storageOrder.destAmount,
             storageOrder.filled
         );
