@@ -3,7 +3,7 @@ const {
   constants,
   expectRevert,
   time,
-} = require('openzeppelin-test-helpers');
+} = require('@openzeppelin/test-helpers');
 
 require('chai')
   .use(require('chai-as-promised'))
@@ -14,7 +14,7 @@ const { ZERO_ADDRESS } = constants;
 
 const ESToken = artifacts.require('ESToken');
 const Exchange = artifacts.require('Exchange');
-const USDToken = artifacts.require('USDToken');
+const TetherToken = artifacts.require('TetherToken');
 
 contract('ESToken', async ([owner, alice, bob]) => {
   const RESERVE_ADDRESS = '0x0000000000000000000000000000000000000001';
@@ -33,10 +33,10 @@ contract('ESToken', async ([owner, alice, bob]) => {
     });
   });
 
-  describe('Parameter tests', async () => {
+  describe('Parameters tests', async () => {
     beforeEach(async () => {
       this.esToken = await ESToken.new({ from: owner });
-      this.usdt = await USDToken.new({ from: owner });
+      this.usdt = await TetherToken.new(new BN('1000000000000000000000'), 'USDT', 'USDT', new BN('6'), { from: owner });
       this.exchange = await Exchange.new(this.esToken.address, this.usdt.address, { from: owner });
     });
 
@@ -74,15 +74,15 @@ contract('ESToken', async ([owner, alice, bob]) => {
     });
   });
 
-  describe('Tests of methods', async () => {
+  describe('Methods tests', async () => {
     beforeEach(async () => {
       this.esToken = await ESToken.new({ from: owner });
-      this.usdt = await USDToken.new({ from: owner });
+      this.usdt = await TetherToken.new(new BN('1000000000000000000000'), 'USDT', 'USDT', new BN('6'), { from: owner });
       this.exchange = await Exchange.new(this.esToken.address, this.usdt.address, { from: owner });
       await this.esToken.init(this.exchange.address, { from: owner });
     });
 
-    it('should show balance', async () => {
+    it('should get balance', async () => {
       (await this.esToken.balanceOf(owner)).should.be.bignumber.equal(new BN('5000000000000')); //  5_000_000.000000
       (await this.esToken.balanceOf(alice)).should.be.bignumber.equal(new BN('0'));
 
@@ -92,7 +92,7 @@ contract('ESToken', async ([owner, alice, bob]) => {
       (await this.esToken.balanceOf(owner)).should.be.bignumber.equal(new BN('4000000000000')); //  4_000_000.000000
     });
 
-    it('should accrue interest', async () => {
+    it('should accrued interest', async () => {
       await this.esToken.transfer(alice, new BN('1000000000000'), { from: owner });
       await this.esToken.transfer(bob, new BN('1000000000000'), { from: owner });
       const balance_alice_0 = await this.esToken.balanceOf(alice);
@@ -107,7 +107,7 @@ contract('ESToken', async ([owner, alice, bob]) => {
       balance_alice_2.should.be.bignumber.equal(new BN('0'));
     });
 
-    it('should right calculate compound interest', async () =>  {
+    it('should calculate compound interest right', async () =>  {
       // first try
       await this.esToken.transfer(alice, new BN('1000000000000'), { from: owner });
       await this.esToken.transfer(bob, new BN('1000000000000'), { from: owner });
@@ -142,7 +142,7 @@ contract('ESToken', async ([owner, alice, bob]) => {
       (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.gt(new BN('24995998000000'));
     });
 
-    it('should right calculate holders counter', async () => {
+    it('should calculate holders counter right', async () => {
       (await this.esToken.holdersCounter({ from: alice })).should.be.bignumber.equal(new BN('3'));
       await this.esToken.transfer(alice, new BN('1000000000000'), { from: owner });
       (await this.esToken.holdersCounter({ from: alice })).should.be.bignumber.equal(new BN('4'));
@@ -153,6 +153,20 @@ contract('ESToken', async ([owner, alice, bob]) => {
       await this.esToken.transfer(alice, new BN('1000000000000'), { from: bob });
       (await this.esToken.balanceOf(bob)).should.be.bignumber.equal(new BN('0'));
       (await this.esToken.holdersCounter({ from: alice })).should.be.bignumber.equal(new BN('4'));
+    });
+  });
+
+  after(async () => {
+    await ESToken.deployed().then(async (instance) => {
+      const bytecode = instance.constructor._json.bytecode;
+      const deployed = instance.constructor._json.deployedBytecode;
+      const sizeOfB = bytecode.length / 2;
+      const sizeOfD = deployed.length / 2;
+      console.log("\n    ESToken size of bytecode in bytes =", sizeOfB);
+      console.log("    ESToken size of deployed in bytes =", sizeOfD);
+      console.log("    ESToken initialisation and constructor code in bytes =", sizeOfB - sizeOfD);
+      const receipt = await web3.eth.getTransactionReceipt(this.esToken.transactionHash);
+      console.log("    ESToken deploy gas =", receipt.gasUsed);
     });
   });
 });
