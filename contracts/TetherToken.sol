@@ -115,7 +115,7 @@ contract TetherToken is Context, IERC20USDTCOMPATIBLE {
         _decimals = decimals_;
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual {
+    function _beforeTokenTransfer(address, address, uint256) internal virtual {
 
     }
 }
