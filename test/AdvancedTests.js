@@ -31,7 +31,12 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
     it('should match correct and sub\add fee depends on available sum', async () => {
       await this.usdt.transfer(this.exchange.address, new BN('1000000000000'), { from: owner });
       // 1 u / 1 e = 1 e / 1 u (by exchange)
-      let calc = await this.exchange._match(this.usdt.address, new BN('1000000'), this.estt.address, new BN('1000000'), new BN('0'), new BN('0'), new BN('1000000'), new BN('1000000'), new BN('0'));
+      let calc = await this.exchange._match(this.usdt.address, usdt('70000000'), this.estt.address, estt('70000000'), new BN('0'), new BN('0'), usdt('70000000'), estt('70000000'), new BN('0'));
+      calc[0].should.be.bignumber.equal(usdt('70000000'));
+      calc[1].should.be.bignumber.equal(new BN('0'));
+      calc[2].should.be.bignumber.equal(estt('70000000'));
+      calc[3].should.be.bignumber.equal(new BN('0'));
+      calc = await this.exchange._match(this.usdt.address, new BN('1000000'), this.estt.address, new BN('1000000'), new BN('0'), new BN('0'), new BN('1000000'), new BN('1000000'), new BN('0'));
       calc[0].should.be.bignumber.equal(new BN('1000000'));
       calc[1].should.be.bignumber.equal(new BN('0'));
       calc[2].should.be.bignumber.equal(new BN('1000000'));
@@ -78,15 +83,20 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       calc[2].should.be.bignumber.equal(new BN('892800'));
       calc[3].should.be.bignumber.equal(new BN('7199'));
       calc = await this.exchange._match(this.usdt.address, new BN('1000000'), this.estt.address, new BN('900000'), new BN('0'), new BN('1'), new BN('903600'), new BN('1004000'), new BN('0'));
-      calc[0].should.be.bignumber.equal(new BN('995998'));
+      calc[0].should.be.bignumber.equal(new BN('995967'));
       calc[1].should.be.bignumber.equal(new BN('0'));
-      calc[2].should.be.bignumber.equal(new BN('896399'));
-      calc[3].should.be.bignumber.equal(new BN('7200'));
+      calc[2].should.be.bignumber.equal(new BN('896371'));
+      calc[3].should.be.bignumber.equal(new BN('7228'));
       calc = await this.exchange._match(this.usdt.address, new BN('1004000'), this.estt.address, new BN('903600'), new BN('0'), new BN('1'), new BN('900000'), new BN('1000000'), new BN('0'));
       calc[0].should.be.bignumber.equal(new BN('991999'));
       calc[1].should.be.bignumber.equal(new BN('0'));
       calc[2].should.be.bignumber.equal(new BN('892800'));
       calc[3].should.be.bignumber.equal(new BN('7199'));
+      calc = await this.exchange._match(this.estt.address, new BN('1000000000000'), this.estt.address, new BN('1000000000000'), new BN('0'), new BN('0'), new BN('1000000000000'), new BN('1000000000000'), new BN('0'));
+      calc[0].should.be.bignumber.equal(new BN('992000000000'));
+      calc[1].should.be.bignumber.equal(new BN('8000000000'));
+      calc[2].should.be.bignumber.equal(new BN('992000000000'));
+      calc[3].should.be.bignumber.equal(new BN('0'));
       calc = await this.exchange._match(this.estt.address, new BN('1000000'), this.usdt.address, new BN('1000000'), new BN('0'), new BN('0'), new BN('1000000'), new BN('1000000'), new BN('0'));
       calc[0].should.be.bignumber.equal(new BN('992000'));
       calc[1].should.be.bignumber.equal(new BN('8000'));
@@ -138,9 +148,9 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       calc[2].should.be.bignumber.equal(new BN('992000'));
       calc[3].should.be.bignumber.equal(new BN('0'));
       calc = await this.exchange._match(this.estt.address, new BN('903600'), this.usdt.address, new BN('1004000'), new BN('0'), new BN('1'), new BN('1000000'), new BN('900000'), new BN('0'));
-      calc[0].should.be.bignumber.equal(new BN('896400'));
-      calc[1].should.be.bignumber.equal(new BN('7200'));
-      calc[2].should.be.bignumber.equal(new BN('996000'));
+      calc[0].should.be.bignumber.equal(new BN('896372'));
+      calc[1].should.be.bignumber.equal(new BN('7228'));
+      calc[2].should.be.bignumber.equal(new BN('995968'));
       calc[3].should.be.bignumber.equal(new BN('0'));
       calc = await this.exchange._match(this.estt.address, new BN('900000'), this.usdt.address, new BN('1000000'), new BN('0'), new BN('1'), new BN('1004000'), new BN('903600'), new BN('0'));
       calc[0].should.be.bignumber.equal(new BN('892800'));
@@ -225,6 +235,15 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('0'));
       (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(estt('70000000'));
       await this.exchange.trade(this.usdt.address, usdt('70000000'), this.estt.address, estt('70000000'), ZERO_ADDRESS, { from: owner }); // 1 usdt -> 1 estt
+      //             let uidss = await this.exchange.getMyOrders({ from: owner });
+      //       console.log("\t\t\t", uidss.length);
+      //       let orderr = [];
+      //       if (uidss.length > 0)
+      //       orderr = await this.exchange.getOrderByUid(uidss[0], { from: owner });
+      //       for (let key in orderr) {
+      //         console.log("\t\t", orderr[key].toString(10));
+      //       }
+      // return;
       (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(estt('0'));
       let response;
       let amount1 = usdt('1');

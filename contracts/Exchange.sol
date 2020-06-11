@@ -312,6 +312,22 @@ contract Exchange is ExchangeInterface, Ownable {
             availableOpposite = (erc20dest.balanceOf(address(this))).mul(price).div(10 ** _decimals(order.dest));
         }
         (uint256 needed, uint256 fee, uint256 neededOpposite, uint256 feeOpposite) = _calcMatch(order, opposite, availableOpposite, price);
+        // if (opposite.uid != 0) {
+        //     availableOpposite = opposite.srcAmount.sub(opposite.filled);
+        // } else {
+        //     availableOpposite = erc20dest.balanceOf(address(this));
+        // }
+        // uint256 needed = order.srcAmount.sub(order.filled);
+        // uint256 neededOpposite; 
+        // uint256 fee;
+        // uint256 feeOpposite;
+        // (needed, fee, neededOpposite, feeOpposite) = _calcMatch(needed, availableOpposite, price, 10 ** _decimals(order.dest), order.src);
+        // // (uint256 needed, uint256 neededOpposite, uint256 fee) = _calcMatch(order, opposite, availableOpposite, price);
+        // if (order.src != _ESTTAddress)
+        //     fee = 0;
+        // if (opposite.uid > 0 && order.src != _ESTTAddress && opposite.trader != address(this)) {
+        //     feeOpposite = fee;
+        // }
 
         IERC20 erc20src = IERC20(order.src);
         require(erc20src.allowance(order.trader, address(this)) >= needed.add(fee), "src not enough balance");
@@ -387,44 +403,54 @@ contract Exchange is ExchangeInterface, Ownable {
         } else {
             availableOpposite = (erc20dest.balanceOf(address(this))).mul(price).div(10 ** _decimals(order.dest));
         }
+        // if (opposite.uid != 0) {
+        //     availableOpposite = opposite.srcAmount.sub(opposite.filled);
+        // } else {
+        //     availableOpposite = erc20dest.balanceOf(address(this));
+        // }
         return _calcMatch(order, opposite, availableOpposite, price);
         // uint256 srcToken = order.srcAmount.sub(order.filled);
-        // bool estt_usdt = order.src == _ESTTAddress;
-        // (uint256 needed, uint256 neededOpposite, uint256 fee) = _calcAmountOfTokens(srcToken, availableOpposite, price, 10 ** _decimals(order.dest), estt_usdt);
-        // return (needed, order.src == _ESTTAddress ? fee : 0, neededOpposite, order.src != _ESTTAddress ? fee : 0);
+        // // bool estt_usdt = order.src == _ESTTAddress;
+        // (uint256 needed, uint256 fee, uint256 neededOpposite, uint256 feeOpposite) = _calcMatch(srcToken, availableOpposite, price, 10 ** _decimals(order.dest), order.src);
+        // return (
+        //     needed,
+        //     (order.trader != address(this) && order.src == _ESTTAddress) ? fee : 0,
+        //     neededOpposite,
+        //     (opposite.uid > 0 && order.src != _ESTTAddress && opposite.trader != address(this)) ? feeOpposite : 0
+        // );
     }
 
-    // function _calcAmountOfTokens (
-    //     uint256 startSrcTokens,
-    //     uint256 startDestTokens,
-    //     uint256 price,
-    //     uint256 destDecimals,
-    //     bool estt_usdt
-    // ) public view returns (uint256 srcToken, uint256 destToken, uint256 fee) {
-    //     srcToken = startSrcTokens;
-    //     if (estt_usdt) {
-    //         fee = srcToken.mul(EXCHANGE_FEE).div(10 ** 18);
-    //         srcToken = srcToken.sub(fee);
-    //         destToken = startDestTokens.mul(price).div(destDecimals);
-    //         if (srcToken > destToken) {
-    //             srcToken = destToken;
-    //             fee = srcToken.mul(EXCHANGE_FEE).div(10 ** 18);
-    //         }
-    //         destToken = srcToken.mul(destDecimals).div(price);
-    //     } else {
-    //         fee = startDestTokens.mul(EXCHANGE_FEE).div(10 ** 18);
-    //         destToken = startDestTokens.sub(fee);
-    //         destToken = destToken.mul(price).div(destDecimals);
-    //         if (srcToken > destToken) {
-    //             srcToken = destToken;
-    //             destToken = srcToken.mul(destDecimals).div(price);
-    //         } else {
-    //             destToken = srcToken.mul(destDecimals).div(price);
-    //             fee = destToken.mul(EXCHANGE_FEE).div(10 ** 18);
-    //         }
-    //     }
-    //     return (srcToken, destToken, fee);
-    // }
+    function _calcMatch (
+        uint256 startSrcTokens,
+        uint256 startDestTokens,
+        uint256 price,
+        uint256 destDecimals,
+        address src
+    ) internal view returns (uint256 srcToken, uint256 fee, uint256 destToken, uint256 feeDest) {
+        srcToken = startSrcTokens;
+        if (src == _ESTTAddress) {
+            fee = srcToken.mul(EXCHANGE_FEE).div(10 ** 18);
+            srcToken = srcToken.sub(fee);
+            destToken = startDestTokens.mul(price).div(destDecimals);
+            if (srcToken > destToken) {
+                srcToken = destToken;
+                fee = srcToken.mul(EXCHANGE_FEE).div(10 ** 18);
+            }
+            destToken = srcToken.mul(destDecimals).div(price);
+        } else {
+            fee = startDestTokens.mul(EXCHANGE_FEE).div(10 ** 18);
+            destToken = startDestTokens.sub(fee);
+            destToken = destToken.mul(price).div(destDecimals);
+            if (srcToken > destToken) {
+                srcToken = destToken;
+                destToken = srcToken.mul(destDecimals).div(price);
+            } else {
+                destToken = srcToken.mul(destDecimals).div(price);
+                fee = destToken.mul(EXCHANGE_FEE).div(10 ** 18);
+            }
+        }
+        return (srcToken, fee, destToken, feeDest);
+    }
 
     // function _calcMatch (MemoryOrder memory order, Order memory opposite, uint256 availableOpposite, uint256 price
     //     // address src,
@@ -479,6 +505,7 @@ contract Exchange is ExchangeInterface, Ownable {
             fee = needed.mul(EXCHANGE_FEE).div(10 ** 18);
             neededOpposite = needed.mul(10 ** _decimals(order.dest)).div(price);
             if (needed.add(fee) > available) {
+                fee = available.mul(EXCHANGE_FEE).div(10 ** 18);
                 needed = available.sub(fee);
                 neededOpposite = needed.mul(10 ** _decimals(order.dest)).div(price);
             }
@@ -495,6 +522,7 @@ contract Exchange is ExchangeInterface, Ownable {
             needed = neededOpposite.mul(price).div(10 ** _decimals(order.dest));
             availableOpposite = availableOpposite.mul(10 ** _decimals(order.dest)).div(price);
             if (neededOpposite.add(feeOpposite) > availableOpposite) {
+                feeOpposite = availableOpposite.mul(EXCHANGE_FEE).div(10 ** 18);
                 neededOpposite = availableOpposite.sub(feeOpposite);
                 needed = neededOpposite.mul(price).div(10 ** _decimals(order.dest));
             }
