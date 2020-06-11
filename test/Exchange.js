@@ -29,9 +29,10 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
     await this.estt.init(this.exchange.address, {from: owner});
   });
 
+  // see migrations
   it("should deploy with less than 6 mil gas", async () => {
     const receipt = await web3.eth.getTransactionReceipt(this.exchange.transactionHash);
-    assert.isBelow(receipt.gasUsed, 6000000);
+    assert.isBelow(receipt.gasUsed, process.env.NETWORK == 'soliditycoverage' ? 12000000 : 6000000);
   });
 
   describe('Basic trade tests', async () => {
@@ -47,7 +48,7 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       await this.exchange.trade(this.usdt.address, usdt('1'), this.estt.address, new BN('100000'), ZERO_ADDRESS, {from: alice}); // 1 usdt -> 0.1 estt
       await this.exchange.trade(this.usdt.address, usdt('2'), this.estt.address, new BN('100000'), ZERO_ADDRESS, {from: alice}); // 2 usdt -> 0.1 estt
       await this.exchange.trade(this.usdt.address, usdt('1'), this.estt.address, new BN('100000'), ZERO_ADDRESS, {from: alice}); // 1 usdt -> 0.1 estt
-      await this.exchange.trade(this.estt.address, new BN('1008000'), this.usdt.address, usdt('50.1'), ZERO_ADDRESS, {from: alice}); // 1 estt -> 50.1 usdt
+      await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, usdt('50.1'), ZERO_ADDRESS, {from: alice}); // 1 estt -> 50.1 usdt
     });
 
     it('should revert if not enough balance', async () => {
@@ -56,16 +57,25 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       await this.exchange.trade(this.usdt.address, usdt('5'), this.estt.address, new BN('1000000'), ZERO_ADDRESS, {from: alice}); // 5 usdt -> 1 estt
       await expectRevert(this.exchange.trade(this.usdt.address, usdt('0.000001'), this.estt.address, new BN('1'), ZERO_ADDRESS, {from: alice}), 'not enough balance');
       // // estt
-      await expectRevert(this.exchange.trade(this.estt.address, new BN('1008010'), this.usdt.address, usdt('10.1'), ZERO_ADDRESS, {from: alice}), 'not enough balance');
-      await this.exchange.trade(this.estt.address, new BN('1008000'), this.usdt.address, usdt('50.1'), ZERO_ADDRESS, {from: alice}); // 1 estt -> 50.1 usdt
-      await expectRevert(this.exchange.trade(this.estt.address, new BN('2'), this.usdt.address, usdt('10.1'), ZERO_ADDRESS, {from: alice}), 'not enough balance');
+      await expectRevert(this.exchange.trade(this.estt.address, new BN('1000001'), this.usdt.address, usdt('10.1'), ZERO_ADDRESS, {from: alice}), 'not enough balance');
+      await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, usdt('50.1'), ZERO_ADDRESS, {from: alice}); // 1 estt -> 50.1 usdt
+      await expectRevert(this.exchange.trade(this.estt.address, new BN('12'), this.usdt.address, usdt('10.1'), ZERO_ADDRESS, {from: alice}), 'not enough balance');
     });
 
     it('should revert if price is low', async () => {
       // usdt
       await expectRevert(this.exchange.trade(this.usdt.address, usdt('1'), this.estt.address, new BN('1000001'), ZERO_ADDRESS, {from: alice}), 'ESTT can\'t be cheaper USDT');
       // estt
-      await expectRevert(this.exchange.trade(this.estt.address, new BN('100802'), this.usdt.address, usdt('0.1'), ZERO_ADDRESS, {from: alice}), 'ESTT can\'t be cheaper USDT');
+      await expectRevert(this.exchange.trade(this.estt.address, new BN('100001'), this.usdt.address, usdt('0.1'), ZERO_ADDRESS, {from: alice}), 'ESTT can\'t be cheaper USDT');
+    });
+
+    it('should revert if src or dest not correct', async () => {
+      const someErc20 = await ESToken.new({from: owner});
+      // usdt
+      await expectRevert(this.exchange.trade(someErc20.address, usdt('1'), this.estt.address, new BN('1000000'), ZERO_ADDRESS, {from: alice}), 'wrong src');
+      // estt
+      await expectRevert(this.exchange.trade(this.estt.address, new BN('100000'), someErc20.address, usdt('0.1'), ZERO_ADDRESS, {from: alice}), 'wrong dest');
+      await expectRevert(this.exchange.trade(someErc20.address, new BN('100000'), someErc20.address, usdt('0.1'), ZERO_ADDRESS, {from: alice}), 'wrong src');
     });
   });
 
@@ -79,7 +89,7 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       await this.exchange.trade(this.usdt.address, usdt('1'), this.estt.address, new BN('100000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 0.1 estt
       await this.exchange.trade(this.usdt.address, usdt('2'), this.estt.address, new BN('100000'), ZERO_ADDRESS, { from: alice }); // 2 usdt -> 0.1 estt
       await this.exchange.trade(this.usdt.address, usdt('1'), this.estt.address, new BN('100000'), ZERO_ADDRESS, { from: alice }); // 1 usdt -> 0.1 estt
-      await this.exchange.trade(this.estt.address, new BN('1008000'), this.usdt.address, usdt('50.1'), ZERO_ADDRESS, { from: alice }); // 1 estt -> 50.1 usdt
+      await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, usdt('50.1'), ZERO_ADDRESS, { from: alice }); // 1 estt -> 50.1 usdt
     });
 
     it('should get prices', async () => {
@@ -125,7 +135,6 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       order_usdt_estt_0[2].should.be.bignumber.equal(usdt('2'));
       order_usdt_estt_0[3].should.be.bignumber.equal(new BN('100000'));
       order_usdt_estt_0[4].should.be.bignumber.equal(new BN('0'));
-      order_usdt_estt_0[5].should.be.bignumber.equal(new BN('0'));
       const price_usdt_estt_1_uids = await this.exchange.getUidsByPrice(this.usdt.address, price_usdt_estt_1);
       assertEqual(price_usdt_estt_1_uids.length, 3);
       for (let i = 0; i < 3; ++i) {
@@ -135,7 +144,6 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
         order_usdt_estt[2].should.be.bignumber.equal(usdt('1'));
         order_usdt_estt[3].should.be.bignumber.equal(new BN('100000'));
         order_usdt_estt[4].should.be.bignumber.equal(new BN('0'));
-        order_usdt_estt[5].should.be.bignumber.equal(new BN('0'));
       }
       // estt
       const price_estt_usdt_0 = await this.exchange.getNextPrice(this.estt.address, 0);
@@ -149,8 +157,7 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       order_usdt_estt_4[1].should.be.equal(alice);
       order_usdt_estt_4[2].should.be.bignumber.equal(new BN('1000000'));
       order_usdt_estt_4[3].should.be.bignumber.equal(usdt('50.1'));
-      order_usdt_estt_4[4].should.be.bignumber.equal(new BN('8000'));
-      order_usdt_estt_4[5].should.be.bignumber.equal(new BN('0'));
+      order_usdt_estt_4[4].should.be.bignumber.equal(new BN('0'));
     });
   });
 
@@ -173,18 +180,18 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
 
     it ('should instant sell ESTT by 1:1 price', async () => {
       // "before" block
-      await this.usdt.transfer(bob, new BN('1008000'), { from: owner });
-      await this.usdt.approve(this.exchange.address,new BN('1008000'), { from: bob });
-      await this.exchange.trade(this.usdt.address, new BN('1008000'), this.estt.address, new BN('1008000'), ZERO_ADDRESS, { from: bob }); // 1 usdt -> 1 estt
+      await this.usdt.transfer(bob, new BN('1000000'), { from: owner });
+      await this.usdt.approve(this.exchange.address,new BN('1000000'), { from: bob });
+      await this.exchange.trade(this.usdt.address, new BN('1000000'), this.estt.address, new BN('1000000'), ZERO_ADDRESS, { from: bob }); // 1 usdt -> 1 estt
       //estt
-      (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('1008000'));
-      (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('69999998992000'));
-      await this.estt.approve(this.exchange.address, new BN('1008000'), { from: bob });
+      (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('1000000'));
+      (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('69999999000000'));
+      await this.estt.approve(this.exchange.address, new BN('1000000'), { from: bob });
       (await this.usdt.balanceOf(bob)).should.be.bignumber.equal(usdt('0'));
-      await this.exchange.trade(this.estt.address, new BN('1008000'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 1 usdt -> 1 estt
+      await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 1 usdt -> 1 estt
       const bob_orders_1 = await this.exchange.getMyOrders({ from: bob });
       assertEqual(bob_orders_1.length, 0);
-      (await this.usdt.balanceOf(bob)).should.be.bignumber.equal(usdt('1'));
+      (await this.usdt.balanceOf(bob)).should.be.bignumber.equal(usdt('0.992'));
       (await this.estt.balanceOf(bob)).should.be.bignumber.equal(new BN('0'));
       (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(usdt('0.008'));
       (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('69999999992000'));
@@ -226,31 +233,39 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       assertEqual(alice_orders_2.length, 0);
     });
 
-    // it('should support piecemeal purchases', async () => {
-    //   await this.estt.transfer(bob, new BN('2016129'), { from: owner }); // 2 estt + 0.8% fee
-    //   await this.estt.approve(this.exchange.address, new BN('2016129'), { from: bob }); // 2 estt + 0.8% fee
-    //   await this.exchange.trade(this.estt.address, new BN('400000'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 0.4 estt -> 1 usdt
-    //   const price_usdt_estt_0 = await this.exchange.getNextPrice(this.usdt.address, 0);
-    //   const price_usdt_estt_0_uids = await this.exchange.getUidsByPrice(this.usdt.address, price_usdt_estt_0);
-    //   const order_usdt_estt_0 = await this.exchange.getOrderByUid(price_usdt_estt_0_uids[0]);
-    //   order_usdt_estt_0[5].should.be.bignumber.equal(usdt('1.5872')); // 1.6 - 0.8% exchange fee
-    //   const alice_orders_0 = await this.exchange.getMyOrders({ from: alice });
-    //   assertEqual(alice_orders_0.length, 4);
-    //   await this.exchange.trade(this.estt.address, new BN('400000'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 0.4 estt -> 1 usdt
-    //   const bob_orders_0 = await this.exchange.getMyOrders({ from: bob });
-    //   assertEqual(bob_orders_0.length, 1);
-    //   const alice_orders_1 = await this.exchange.getMyOrders({ from: alice });
-    //   assertEqual(alice_orders_1.length, 3);
-    //   await this.exchange.cancel(bob_orders_0[0], { from: bob });
-    //   await this.exchange.trade(this.estt.address, new BN('504032'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 0.5 estt (+0.8% for fee) -> 1 usdt
-    //   const alice_orders_2 = await this.exchange.getMyOrders({ from: alice });
-    //   assertEqual(alice_orders_2.length, 2);
-    //   await this.exchange.trade(this.estt.address, new BN('1008065'), this.usdt.address, usdt('1.5'), ZERO_ADDRESS, { from: bob }); // 200 estt (+0.8% for fee) -> 1.5 usdt
-    //   (await this.estt.balanceOf(alice, { from: alice })).should.be.bignumber.equal(new BN('2000000'));
-    //   (await this.estt.balanceOf(bob, { from: bob })).should.be.bignumber.lt(new BN('10'));
-    //   (await this.usdt.balanceOf(alice, { from: alice })).should.be.bignumber.lt(new BN('10'));
-    //   (await this.usdt.balanceOf(bob, { from: bob })).should.be.bignumber.equal(usdt('5'));
-    // });
+    it('should support piecemeal purchases', async () => {
+      await this.estt.transfer(bob, new BN('2016129'), { from: owner }); // 2 estt + 0.8% fee
+      await this.estt.approve(this.exchange.address, new BN('2016129'), { from: bob }); // 2 estt + 0.8% fee
+      await this.exchange.trade(this.estt.address, new BN('400000'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 0.4 estt -> 1 usdt
+            let uids = await this.exchange.getMyOrders({ from: bob });
+            console.log("\t\t\t", uids.length);
+            let order = [];
+            if (uids.length > 0)
+              order = await this.exchange.getOrderByUid(uids[0], { from: owner });
+            for (let key in order) {
+              console.log("\t\t", order[key].toString(10));
+            }
+      const price_usdt_estt_0 = await this.exchange.getNextPrice(this.usdt.address, 0);
+      const price_usdt_estt_0_uids = await this.exchange.getUidsByPrice(this.usdt.address, price_usdt_estt_0);
+      const order_usdt_estt_0 = await this.exchange.getOrderByUid(price_usdt_estt_0_uids[0]);
+      order_usdt_estt_0[4].should.be.bignumber.equal(usdt('1.5872')); // 1.6 - 0.8% exchange fee
+      const alice_orders_0 = await this.exchange.getMyOrders({ from: alice });
+      assertEqual(alice_orders_0.length, 4);
+      await this.exchange.trade(this.estt.address, new BN('400000'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 0.4 estt -> 1 usdt
+      const bob_orders_0 = await this.exchange.getMyOrders({ from: bob });
+      assertEqual(bob_orders_0.length, 1);
+      const alice_orders_1 = await this.exchange.getMyOrders({ from: alice });
+      assertEqual(alice_orders_1.length, 3);
+      await this.exchange.cancel(bob_orders_0[0], { from: bob });
+      await this.exchange.trade(this.estt.address, new BN('504032'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 0.5 estt (+0.8% for fee) -> 1 usdt
+      const alice_orders_2 = await this.exchange.getMyOrders({ from: alice });
+      assertEqual(alice_orders_2.length, 2);
+      await this.exchange.trade(this.estt.address, new BN('1008065'), this.usdt.address, usdt('1.5'), ZERO_ADDRESS, { from: bob }); // 200 estt (+0.8% for fee) -> 1.5 usdt
+      (await this.estt.balanceOf(alice, { from: alice })).should.be.bignumber.equal(new BN('2000000'));
+      (await this.estt.balanceOf(bob, { from: bob })).should.be.bignumber.lt(new BN('10'));
+      (await this.usdt.balanceOf(alice, { from: alice })).should.be.bignumber.lt(new BN('10'));
+      (await this.usdt.balanceOf(bob, { from: bob })).should.be.bignumber.equal(usdt('5'));
+    });
   });
 
   describe('Referral tests', async () => {

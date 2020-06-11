@@ -9,7 +9,7 @@ const usdt = (n) => {
   return new BN(str);
 };
 
-module.exports = { 
-  usdt, 
-  estt: (n) => usdt(n) 
+module.exports = {
+  usdt,
+  estt: (n) => usdt(n)
 };
