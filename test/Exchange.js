@@ -238,14 +238,6 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       await this.estt.transfer(bob, new BN('2016129'), { from: owner }); // 2 estt + 0.8% fee
       await this.estt.approve(this.exchange.address, new BN('2016129'), { from: bob }); // 2 estt + 0.8% fee
       await this.exchange.trade(this.estt.address, new BN('400000'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 0.4 estt -> 1 usdt
-            // let uids = await this.exchange.getMyOrders({ from: bob });
-            // console.log("\t\t\t", uids.length);
-            // let order = [];
-            // if (uids.length > 0)
-            //   order = await this.exchange.getOrderByUid(uids[0], { from: owner });
-            // for (let key in order) {
-            //   console.log("\t\t", order[key].toString(10));
-            // }
       const price_usdt_estt_0 = await this.exchange.getNextPrice(this.usdt.address, 0);
       const price_usdt_estt_0_uids = await this.exchange.getUidsByPrice(this.usdt.address, price_usdt_estt_0);
       const order_usdt_estt_0 = await this.exchange.getOrderByUid(price_usdt_estt_0_uids[0]);
