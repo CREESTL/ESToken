@@ -28,7 +28,49 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
   });
 
   describe('Match tests', async () => {
+    // before run
+    // - add function below to Exchange.sol
+    // - remove first line ("return")
+
+    // function _match (
+    //     address src,
+    //     uint256 srcAmount1,
+    //     address dest,
+    //     uint256 destAmount1,
+    //     uint256 filled1,
+    //     uint256 uid, // 0 if opposite should be exchange
+    //     uint256 srcAmount2,
+    //     uint256 destAmount2,
+    //     uint256 filled2
+    // ) public view returns (uint256, uint256, uint256, uint256) {
+    //     MemoryOrder memory order = MemoryOrder(
+    //         _msgSender(),
+    //         src,
+    //         srcAmount1,
+    //         dest,
+    //         destAmount1,
+    //         filled1
+    //     );
+    //     Order memory opposite = Order(
+    //         uid,
+    //         _msgSender(),
+    //         srcAmount2,
+    //         destAmount2,
+    //         filled2
+    //     );
+    //     uint256 price = _getPrice(order);
+    //     uint256 availableOpposite;
+    //     IERC20 erc20dest = IERC20(order.dest);
+    //     if (opposite.uid != 0) {
+    //         availableOpposite = (opposite.srcAmount.sub(opposite.filled)).mul(price).div(_decimals(order.dest));
+    //     } else {
+    //         availableOpposite = (erc20dest.balanceOf(address(this))).mul(price).div(_decimals(order.dest));
+    //     }
+    //     return _calcMatch(order, opposite, availableOpposite, price);
+    // }
+
     it('should match correct and sub\add fee depends on available sum', async () => {
+      return;
       await this.usdt.transfer(this.exchange.address, new BN('1000000000000'), { from: owner });
       // 1 u / 1 e = 1 e / 1 u (by exchange)
       let calc = await this.exchange._match(this.usdt.address, usdt('70000000'), this.estt.address, estt('70000000'), new BN('0'), new BN('0'), usdt('70000000'), estt('70000000'), new BN('0'));
@@ -228,7 +270,7 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
     });
 
     it('should place few orders continue trade', async () => {
-      return;
+      // return;
       await this.estt.transfer(bob, estt('5000000'), { from: owner });
       await this.estt.approve(this.exchange.address, estt('5000000'), { from: bob });
       await this.usdt.approve(this.exchange.address, usdt('700000000'), { from: owner });

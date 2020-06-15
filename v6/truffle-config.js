@@ -1,9 +1,15 @@
 module.exports = {
   networks: {
-
+    soliditycoverage: {
+      host: "localhost",
+      port: 8555,
+      network_id: "*", // Match any network id
+      gas: 6721975
+    }
   },
   mocha: {
-
+    // reporter: "eth-gas-reporter",
+    // reporterOptions : { currency: "USD" }
   },
   compilers: {
     solc: {

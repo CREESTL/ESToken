@@ -10,7 +10,7 @@
     "build": "truffle build",
     "test": "truffle test --config ./v6/truffle-config.js",
     "truffle": "truffle",
-    "flatten": "truffle-flattener contracts/Exchange.sol contracts/ESToken.sol >> contracts/Flattened.sol"
+    "flatten": "truffle-flattener contracts/Exchange.sol contracts/ESToken.sol >> ./Flattened.sol"
   },
   "author": "",
   "license": "ISC",
@@ -34,6 +34,7 @@
     "eslint-plugin-jsx-a11y": "^6.2.3",
     "eslint-plugin-react": "^7.19.0",
     "eslint-plugin-react-hooks": "^3.0.0",
+    "eth-gas-reporter": "^0.2.17",
     "ethereumjs-testrpc-sc": "^6.5.1-sc.1",
     "karma": "^5.0.2",
     "lodash": "^4.17.15",
