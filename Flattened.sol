@@ -718,7 +718,6 @@ contract Exchange is ExchangeInterface, Ownable {
     struct TokenEntity {
         uint256 reservedBalance;
         Order[] orders;
-        // TODO typo
         mapping(uint256 => uint256) ids; // uid -> index
     }
 
@@ -752,13 +751,14 @@ contract Exchange is ExchangeInterface, Ownable {
         ESTokenInterface potentialESTT = ESTokenInterface(esttAddress);
         require(potentialESTT.isESToken(), "address doesn't match to ESTT");
         _ESTT = IERC20(esttAddress);
-        _ESTTDecimals = _ESTT.decimals();
+        _ESTTDecimals = 10 ** uint256(_ESTT.decimals());
         _ESTTAddress = esttAddress;
         IERC20USDTCOMPATIBLE potentialUSDT = IERC20USDTCOMPATIBLE(usdtAddress);
         _USDTDecimals = potentialUSDT.decimals();
         require(_USDTDecimals == 6, "address doesn't match to USDT");
         _USDT = potentialUSDT;
         _USDTAddress = usdtAddress;
+        _USDTDecimals = 10 ** _USDTDecimals;
     }
 
     function isExchange() pure external override returns (bool) {
@@ -804,7 +804,6 @@ contract Exchange is ExchangeInterface, Ownable {
             _usersAddresses[userId] = _msgSender();
         }
         require(_usersAddresses[userId] == _msgSender(), "user address already exist");
-        _lastUid++;
         MemoryOrder memory order = MemoryOrder(
             _msgSender(),
             src,
@@ -824,8 +823,8 @@ contract Exchange is ExchangeInterface, Ownable {
             esttInerface.parentReferral(_msgSender()) == address(0) &&
             src == _USDTAddress
         ) {
-            uint256 price = _getPrice(order, true);
-            uint256 orderBonus = order.filled.mul(price).div(10 ** _USDTDecimals);
+            uint256 price = _getPriceInverted(order);
+            uint256 orderBonus = order.filled.mul(price).div(_USDTDecimals);
             esttInerface.setParentReferral(_msgSender(), referral, orderBonus.mul(REFERRAL_BONUS).div(10 ** 18));
         }
     }
@@ -844,7 +843,7 @@ contract Exchange is ExchangeInterface, Ownable {
         );
         if(_trade(order) == 0) {
             _removeOrder(uid, order.src, order.trader);
-            uint256 price = _getPrice(order, true);
+            uint256 price = _getPriceInverted(order);
             _removeOrderFromOrderBook(uid, order.src, price);
         } else {
             _ledger[user][tokenSrcAddress].orders[index].filled = order.filled;
@@ -866,7 +865,7 @@ contract Exchange is ExchangeInterface, Ownable {
         uint256 restAmount = order.srcAmount.sub(order.filled);
         _ledger[order.trader][order.src].reservedBalance = _ledger[order.trader][order.src].reservedBalance.sub(restAmount);
         _removeOrder(uid, order.src, order.trader);
-        uint256 price = _getPrice(order, true);
+        uint256 price = _getPriceInverted(order);
         _removeOrderFromOrderBook(uid, order.src, price);
     }
 
@@ -874,7 +873,7 @@ contract Exchange is ExchangeInterface, Ownable {
     // if price more than market - order will be matched with market price
     function _trade (MemoryOrder memory order) internal returns (uint256) {
         OrderBook storage destOrderBook = _orderBooks[order.dest];
-        uint256 maxPrice = _getPrice(order, false);
+        uint256 maxPrice = _getPrice(order);
         uint256 destKey = destOrderBook.tree.first();
 
         while (destKey != 0) {
@@ -884,13 +883,15 @@ contract Exchange is ExchangeInterface, Ownable {
                 while (destOrderBook.uids[destKey].length != 0) {
                     uint256 uid = destOrderBook.uids[destKey][0];
                     (address src, address user, uint256 index) = _unpackUid(uid);
-                    Order storage opposite = _ledger[user][src].orders[index];
+                    Order memory opposite = _ledger[user][src].orders[index];
                     (bool badOpposite, uint256 filledOpposite) = _match(order, opposite, destKey);
                     opposite.filled = opposite.filled.add(filledOpposite);
                     if (opposite.srcAmount.sub(opposite.filled) < 10 || !badOpposite) {
                         nextKey = destOrderBook.tree.next(destKey);
                         _removeOrder(destOrderBook.uids[destKey][0], order.dest, opposite.trader);
                         _removeOrderFromPriceIndex(destOrderBook, 0, destKey);
+                    } else {
+                        _ledger[user][src].orders[index].filled = opposite.filled;
                     }
                     if (order.filled == order.srcAmount || gasleft() < 600000) {
                         return order.srcAmount.sub(order.filled);
@@ -906,17 +907,14 @@ contract Exchange is ExchangeInterface, Ownable {
                 destKey = destOrderBook.tree.next(destKey);
         }
 
-        if (maxPrice == (10 ** _decimals(order.src))) {
-            _match(
-                order,
-                Order(0, address(0), 0, 0, 0),
-                maxPrice
-            );
+        if (maxPrice == (_decimals(order.src))) {
+            _match(order, Order(0, address(0), 0, 0, 0), maxPrice);
         }
         return order.srcAmount.sub(order.filled);
     }
 
     function _insertOrder (MemoryOrder memory order, address src) internal {
+        _lastUid++;
         Order memory storageOrder = Order(
             _packUid(_lastUid, src, _msgSender()),
             order.trader,
@@ -927,7 +925,7 @@ contract Exchange is ExchangeInterface, Ownable {
         _ledger[order.trader][src].orders.push(storageOrder);
         uint256 length = _ledger[order.trader][src].orders.length;
         _ledger[order.trader][src].ids[storageOrder.uid] = length;
-        uint256 price = _getPrice(order, true);
+        uint256 price = _getPriceInverted(order);
         _insertOrderToPriceIndex(_orderBooks[src], storageOrder.uid, price);
     }
 
@@ -971,13 +969,13 @@ contract Exchange is ExchangeInterface, Ownable {
 
     // TODO remove require
     function _orderCheck (MemoryOrder memory order) internal view {
-        uint256 price = _getPrice(order, false);
+        uint256 price = _getPrice(order);
         if (order.src == _ESTTAddress) {
             require(order.dest == _USDTAddress, "wrong dest");
-            require(price <= (10 ** _ESTTDecimals), "ESTT can't be cheaper USDT");
+            require(price <= (_ESTTDecimals), "ESTT can't be cheaper USDT");
         } else if (order.src == _USDTAddress) {
             require(order.dest == _ESTTAddress, "wrong dest");
-            require(price >= (10 ** _USDTDecimals), "ESTT can't be cheaper USDT");
+            require(price >= (_USDTDecimals), "ESTT can't be cheaper USDT");
         } else {
             revert("wrong src");
         }
@@ -992,9 +990,9 @@ contract Exchange is ExchangeInterface, Ownable {
         uint256 availableOpposite;
         IERC20 erc20dest = IERC20(order.dest);
         if (opposite.uid != 0) {
-            availableOpposite = (opposite.srcAmount.sub(opposite.filled)).mul(price).div(10 ** _decimals(order.dest));
+            availableOpposite = (opposite.srcAmount.sub(opposite.filled)).mul(price).div(_decimals(order.dest));
         } else {
-            availableOpposite = (erc20dest.balanceOf(address(this))).mul(price).div(10 ** _decimals(order.dest));
+            availableOpposite = (erc20dest.balanceOf(address(this))).mul(price).div(_decimals(order.dest));
         }
         (uint256 needed, uint256 fee, uint256 neededOpposite, uint256 feeOpposite) = _calcMatch(order, opposite, availableOpposite, price);
 
@@ -1038,43 +1036,6 @@ contract Exchange is ExchangeInterface, Ownable {
         return (true, neededOpposite.add(feeOpposite));
     }
 
-    function _match (
-        address src,
-        uint256 srcAmount1,
-        address dest,
-        uint256 destAmount1,
-        uint256 filled1,
-        uint256 uid, // 0 if opposite should be exchange
-        uint256 srcAmount2,
-        uint256 destAmount2,
-        uint256 filled2
-    ) public view returns (uint256, uint256, uint256, uint256) {
-        MemoryOrder memory order = MemoryOrder(
-            _msgSender(),
-            src,
-            srcAmount1,
-            dest,
-            destAmount1,
-            filled1
-        );
-        Order memory opposite = Order(
-            uid,
-            _msgSender(),
-            srcAmount2,
-            destAmount2,
-            filled2
-        );
-        uint256 price = _getPrice(order, false);
-        uint256 availableOpposite;
-        IERC20 erc20dest = IERC20(order.dest);
-        if (opposite.uid != 0) {
-            availableOpposite = (opposite.srcAmount.sub(opposite.filled)).mul(price).div(10 ** _decimals(order.dest));
-        } else {
-            availableOpposite = (erc20dest.balanceOf(address(this))).mul(price).div(10 ** _decimals(order.dest));
-        }
-        return _calcMatch(order, opposite, availableOpposite, price);
-    }
-
     function _calcMatch (MemoryOrder memory order, Order memory opposite, uint256 availableOpposite, uint256 price) internal view returns
     (
         uint256 needed,
@@ -1087,23 +1048,25 @@ contract Exchange is ExchangeInterface, Ownable {
         if (needed > availableOpposite) {
             needed = availableOpposite;
         }
-        neededOpposite = needed.mul(10 ** _decimals(order.dest)).div(price);
+        neededOpposite = needed.mul(_decimals(order.dest)).div(price);
         if (order.src == _ESTTAddress && order.trader != address(this)) {
             fee = needed.mul(EXCHANGE_FEE).div(10 ** 18);
-            neededOpposite = needed.mul(10 ** _decimals(order.dest)).div(price);
             if (needed.add(fee) > available) {
                 fee = available.mul(EXCHANGE_FEE).div(10 ** 18);
                 needed = available.sub(fee);
-                neededOpposite = needed.mul(10 ** _decimals(order.dest)).div(price);
+                neededOpposite = needed.mul(_decimals(order.dest)).div(price);
+            } else {
+                neededOpposite = needed.mul(_decimals(order.dest)).div(price);
             }
         } else if (order.src == _USDTAddress && opposite.uid > 0 && opposite.trader != address(this)) {
             feeOpposite = neededOpposite.mul(EXCHANGE_FEE).div(10 ** 18);
-            needed = neededOpposite.mul(price).div(10 ** _decimals(order.dest));
-            availableOpposite = availableOpposite.mul(10 ** _decimals(order.dest)).div(price);
+            availableOpposite = availableOpposite.mul(_decimals(order.dest)).div(price);
             if (neededOpposite.add(feeOpposite) > availableOpposite) {
                 feeOpposite = availableOpposite.mul(EXCHANGE_FEE).div(10 ** 18);
                 neededOpposite = availableOpposite.sub(feeOpposite);
-                needed = neededOpposite.mul(price).div(10 ** _decimals(order.dest));
+                needed = neededOpposite.mul(price).div(_decimals(order.dest));
+            } else {
+                needed = neededOpposite.mul(price).div(_decimals(order.dest));
             }
         }
         return (needed, fee, neededOpposite, feeOpposite);
@@ -1130,16 +1093,13 @@ contract Exchange is ExchangeInterface, Ownable {
         return (tokenSrc, userAddress, index.sub(1));
     }
 
-    function _getPrice (MemoryOrder memory order, bool invertFlag) internal view returns (uint256) {
-        if (!invertFlag) {
-            uint256 decimals = order.src == _ESTTAddress ?  // dest decimals
-                10 ** _USDTDecimals :
-                10 ** _ESTTDecimals;
-            return order.srcAmount.mul(decimals).div(order.destAmount);
-        }
-        uint256 decimals = order.src == _ESTTAddress ?  // src decimals
-            10 ** _ESTTDecimals :
-            10 ** _USDTDecimals;
+    function _getPrice (MemoryOrder memory order) internal view returns (uint256) {
+        uint256 decimals = order.src == _ESTTAddress ? _USDTDecimals : _ESTTDecimals;
+        return order.srcAmount.mul(decimals).div(order.destAmount);
+    }
+
+    function _getPriceInverted (MemoryOrder memory order) internal view returns (uint256) {
+        uint256 decimals = order.src == _ESTTAddress ? _ESTTDecimals : _USDTDecimals;
         return order.destAmount.mul(decimals).div(order.srcAmount);
     }
 
