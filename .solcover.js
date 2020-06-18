@@ -1,3 +1,6 @@
 module.exports = {
-    skipFiles: ['Migrations.sol', 'ERC20.sol']
+  skipFiles: ['Migrations.sol', 'ERC20.sol'],
+  onCompileComplete: (config) => {
+
+  }
 };
