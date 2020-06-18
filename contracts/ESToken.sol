@@ -31,6 +31,7 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     uint256 private _accrualTimestamp;
     uint256 private _expIndex;
     uint256 private _expReferralIndex;
+    uint256 private _holdersCounter;
 
     mapping (address => uint256) private _holderIndex;
     mapping (address => ParentRef) private _parentRef;
@@ -86,7 +87,11 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         return _parentRef[user].user;
     }
 
-    function setParentReferral(address user, address parent, uint256 reward) external override {
+    function holdersCounter() external view returns (uint256) {
+        return _holdersCounter;
+    }
+
+    function setParentReferral(address user, address parent, uint256 reward) external override onlyExchange {
         require(parent != _reserveAddress &&
                 parent != _exchangeAddress &&
                 parent != owner(), "Wrong referral");
@@ -120,6 +125,9 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         for(uint256 i = 0; i < _referrals[account].length; ++i) {
             uint256 newExpReferralIndex = _calculateInterest(block.timestamp, _referralInterest, _expReferralIndex);
             Referral memory referral = _referrals[account][i];
+            if (referral.expIndex < (10 ** 18) || _holderIndex[referral.user] < (10 ** 18)) {
+                continue;
+            }
             uint256 newBalanceOfPartner = referral.balance.mul(_expIndex).div(_holderIndex[referral.user]);
             uint256 bonusBalance = newBalanceOfPartner.mul(newExpReferralIndex).div(referral.expIndex);
             uint256 partnerBonus = bonusBalance.sub(newBalanceOfPartner);
@@ -140,6 +148,9 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
 
     function _calculateInterest(uint256 timestampNow, uint256 interest, uint256 prevIndex) internal view returns (uint256) {
         uint256 period = timestampNow.sub(_accrualTimestamp);
+        if (period < 60) {
+            return prevIndex;
+        }
         uint256 interestFactor = interest.mul(period);
         uint newExpIndex = (interestFactor.mul(prevIndex).div(10 ** 18).div(86400)).add(prevIndex);
         return newExpIndex;
@@ -156,6 +167,9 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
             uint256 delta = newBalance.sub(_balances[account]);
             for(uint256 i = 0; i < _referrals[account].length; ++i) {
                 Referral storage referral = _referrals[account][i];
+                if (referral.expIndex < (10 ** 18) || _holderIndex[referral.user] < (10 ** 18)) {
+                    continue;
+                }
                 uint256 newBalanceOfPartner = referral.balance.mul(_expIndex).div(_holderIndex[referral.user]);
                 uint256 bonusBalance = newBalanceOfPartner.mul(_expReferralIndex).div(referral.expIndex);
                 uint256 partnerBonus = bonusBalance.sub(newBalanceOfPartner);
@@ -165,6 +179,9 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
                 referral.balance = newBalanceOfPartner;
             }
             if (delta != 0 && _balances[_reserveAddress] >= delta) {
+                if (_balances[account] == 0) {
+                    _holdersCounter++;
+                }
                 _balances[account] = newBalance;
                 _balances[_reserveAddress] = _balances[_reserveAddress].sub(delta);
                 if (_parentRef[account].user != address(0)) {
@@ -181,6 +198,12 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         if (from != address(0)) {
             _updateBalance(from);
             _updateBalance(to);
+        }
+        if (_balances[from] == amount) {
+            _holdersCounter--;
+        }
+        if (_balances[to] == 0) {
+            _holdersCounter++;
         }
         super._beforeTokenTransfer(from, to, amount);
     }
