@@ -9,6 +9,7 @@ ES Token Contract
 
 **Installation**
 
+- git submodule init update
 - npm i
 
 **Run tests**
