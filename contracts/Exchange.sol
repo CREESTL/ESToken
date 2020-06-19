@@ -46,9 +46,8 @@ contract Exchange is ExchangeInterface, Ownable {
     address constant private RESERVE_ADDRESS = 0x0000000000000000000000000000000000000001;
     uint8 constant private ESTT_2_USDT = 1;
     uint8 constant private USDT_2_ESTT = 2;
-    uint256 constant private REFERRAL_BONUS = 500_000_000_000_000; // +0.05%
-    uint256 constant private EXCHANGE_FEE = 8_000_000_000_000_000; // 0.8% fee from estt->usdt tx
-
+    uint256 private _referralBonus;
+    uint256 private _exchangeFee;
     mapping(address => OrderBook) private _orderBooks; // srcToken -> OrderBook
     mapping(uint256 => address) private _usersAddresses; // uint32(address) -> address
     mapping(address => mapping(address => TokenEntity)) private _ledger; // user, ESTT/USDT pair => TokenEntity
@@ -74,10 +73,30 @@ contract Exchange is ExchangeInterface, Ownable {
         _USDT = potentialUSDT;
         _USDTAddress = usdtAddress;
         _USDTDecimals = 10 ** _USDTDecimals;
+        _referralBonus = 500_000_000_000_000; // +0.05%
+        _exchangeFee = 8_000_000_000_000_000; // 0.8% fee from estt->usdt tx
     }
 
     function isExchange() pure external override returns (bool) {
         return true;
+    }
+
+    function setReferralBonus(uint256 newReferralBonus) external onlyOwner {
+        require(newReferralBonus >= 10 ** 18, "negative referral bonus");
+        _referralBonus = newReferralBonus.sub(10 ** 18);
+    }
+    
+    function referralBonus() external view returns (uint256) {
+        return _referralBonus.add(10 ** 18);
+    }
+
+    function setExchangeFee(uint256 newExchangeFee) external onlyOwner {
+        require(newExchangeFee >= 10 ** 18, "negative exchange fee");
+        _exchangeFee = newExchangeFee.sub(10 ** 18);
+    }
+    
+    function exchangeFee() external view returns (uint256) {
+        return _exchangeFee.add(10 ** 18);
     }
 
     function getNextPrice (address tokenSrc, uint256 price) external view returns (uint256) {
@@ -140,7 +159,7 @@ contract Exchange is ExchangeInterface, Ownable {
         ) {
             uint256 price = _getPriceInverted(order);
             uint256 orderBonus = order.filled.mul(price).div(_USDTDecimals);
-            esttInerface.setParentReferral(_msgSender(), referral, orderBonus.mul(REFERRAL_BONUS).div(10 ** 18));
+            esttInerface.setParentReferral(_msgSender(), referral, orderBonus.mul(_referralBonus).div(10 ** 18));
         }
     }
 
@@ -365,19 +384,19 @@ contract Exchange is ExchangeInterface, Ownable {
         }
         neededOpposite = needed.mul(_decimals(order.dest)).div(price);
         if (order.src == _ESTTAddress && order.trader != address(this)) {
-            fee = needed.mul(EXCHANGE_FEE).div(10 ** 18);
+            fee = needed.mul(_exchangeFee).div(10 ** 18);
             if (needed.add(fee) > available) {
-                fee = available.mul(EXCHANGE_FEE).div(10 ** 18);
+                fee = available.mul(_exchangeFee).div(10 ** 18);
                 needed = available.sub(fee);
                 neededOpposite = needed.mul(_decimals(order.dest)).div(price);
             } else {
                 neededOpposite = needed.mul(_decimals(order.dest)).div(price);
             }
         } else if (order.src == _USDTAddress && opposite.uid > 0 && opposite.trader != address(this)) {
-            feeOpposite = neededOpposite.mul(EXCHANGE_FEE).div(10 ** 18);
+            feeOpposite = neededOpposite.mul(_exchangeFee).div(10 ** 18);
             availableOpposite = availableOpposite.mul(_decimals(order.dest)).div(price);
             if (neededOpposite.add(feeOpposite) > availableOpposite) {
-                feeOpposite = availableOpposite.mul(EXCHANGE_FEE).div(10 ** 18);
+                feeOpposite = availableOpposite.mul(_exchangeFee).div(10 ** 18);
                 neededOpposite = availableOpposite.sub(feeOpposite);
                 needed = neededOpposite.mul(price).div(_decimals(order.dest));
             } else {

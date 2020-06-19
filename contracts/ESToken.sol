@@ -83,6 +83,15 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
         return _dailyInterest.add(10 ** 18);
     }
 
+    function setReferralInterest(uint256 newReferralInterest) external onlyOwner {
+        require(newReferralInterest >= 10 ** 18, "ESToken: negative referral interest");
+        _referralInterest = newReferralInterest.sub(10 ** 18);
+    }
+
+    function referralInterest() external view returns (uint256) {
+        return _referralInterest.add(10 ** 18);
+    }
+
     function parentReferral(address user) external view override returns (address) {
         return _parentRef[user].user;
     }

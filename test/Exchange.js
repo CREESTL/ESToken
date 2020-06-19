@@ -92,6 +92,32 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       await this.exchange.trade(this.estt.address, new BN('1000000'), this.usdt.address, usdt('50.1'), ZERO_ADDRESS, { from: alice }); // 1 estt -> 50.1 usdt
     });
 
+    it('should set/get referral bonus', async () => {
+      (await this.exchange.referralBonus()).should.be.bignumber.equal(new BN('1000500000000000000')); // 1 + 0.05%
+
+      await expectRevert(this.exchange.setReferralBonus(new BN('999999999999999999'), { from: owner }), 'negative referral bonus');
+      await expectRevert(this.exchange.setReferralBonus(new BN('1000000000000000000'), { from: alice }), 'Ownable: caller is not the owner');
+
+      await this.exchange.setReferralBonus(new BN('1000000000000000000'), { from: owner });
+      (await this.exchange.referralBonus()).should.be.bignumber.equal(new BN('1000000000000000000')); // 1 + 0.0%
+
+      await this.exchange.setReferralBonus(new BN('1002000000000000000'), { from: owner });
+      (await this.exchange.referralBonus()).should.be.bignumber.equal(new BN('1002000000000000000')); // 1 + 0.2%
+    });
+
+    it('should set/get exchange fee', async () => {
+      (await this.exchange.exchangeFee()).should.be.bignumber.equal(new BN('1008000000000000000')); // 1 + 0.8%
+
+      await expectRevert(this.exchange.setExchangeFee(new BN('999999999999999999'), { from: owner }), 'negative exchange fee');
+      await expectRevert(this.exchange.setExchangeFee(new BN('1000000000000000000'), { from: alice }), 'Ownable: caller is not the owner');
+
+      await this.exchange.setExchangeFee(new BN('1000000000000000000'), { from: owner });
+      (await this.exchange.exchangeFee()).should.be.bignumber.equal(new BN('1000000000000000000')); // 1 + 0.0%
+
+      await this.exchange.setExchangeFee(new BN('1002000000000000000'), { from: owner });
+      (await this.exchange.exchangeFee()).should.be.bignumber.equal(new BN('1002000000000000000')); // 1 + 0.2%
+    });
+
     it('should get prices', async () => {
       // usdt
       const price_usdt_estt_0 = await this.exchange.getNextPrice(this.usdt.address, 0);

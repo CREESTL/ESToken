@@ -72,6 +72,20 @@ contract('ESToken', async ([owner, alice, bob]) => {
       await this.esToken.setDailyInterest(new BN('1001000000000000000'), { from: owner });
       (await this.esToken.dailyInterest()).should.be.bignumber.equal(new BN('1001000000000000000')); // 1 + 0.1%
     });
+
+    it('should set/get referral interest', async () => {
+      await this.esToken.init(this.exchange.address, { from: owner });
+      (await this.esToken.referralInterest()).should.be.bignumber.equal(new BN('1000100000000000000')); // 1 + 0.01%
+
+      await expectRevert(this.esToken.setReferralInterest(new BN('999999999999999999'), { from: owner }), 'ESToken: negative referral interest');
+      await expectRevert(this.esToken.setReferralInterest(new BN('1000000000000000000'), { from: alice }), 'Ownable: caller is not the owner');
+
+      await this.esToken.setReferralInterest(new BN('1000000000000000000'), { from: owner });
+      (await this.esToken.referralInterest()).should.be.bignumber.equal(new BN('1000000000000000000')); // 1 + 0.0%
+
+      await this.esToken.setReferralInterest(new BN('1002000000000000000'), { from: owner });
+      (await this.esToken.referralInterest()).should.be.bignumber.equal(new BN('1002000000000000000')); // 1 + 0.2%
+    });
   });
 
   describe('Methods tests', async () => {
