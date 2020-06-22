@@ -62,11 +62,23 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       await expectRevert(this.exchange.trade(this.estt.address, new BN('12'), this.usdt.address, usdt('10.1'), ZERO_ADDRESS, {from: alice}), 'not enough balance');
     });
 
-    it('should revert if price is low', async () => {
+    it('should revert if price is too low', async () => {
       // usdt
       await expectRevert(this.exchange.trade(this.usdt.address, usdt('1'), this.estt.address, new BN('1000001'), ZERO_ADDRESS, {from: alice}), 'ESTT can\'t be cheaper USDT');
       // estt
       await expectRevert(this.exchange.trade(this.estt.address, new BN('100001'), this.usdt.address, usdt('0.1'), ZERO_ADDRESS, {from: alice}), 'ESTT can\'t be cheaper USDT');
+    });
+
+    it('should revert if price is too low and not 1:1', async () => {
+      // change min price
+      await this.exchange.setMinPrice(new BN('2000000'), { from: owner });
+      (await this.exchange.minPrice()).should.be.bignumber.equal(new BN('2000000')); // 2
+      // usdt
+      await this.exchange.trade(this.usdt.address, usdt('2'), this.estt.address, new BN('1000000'), ZERO_ADDRESS, {from: alice});
+      await expectRevert(this.exchange.trade(this.usdt.address, new BN('2000000'), this.estt.address, new BN('1000001'), ZERO_ADDRESS, {from: alice}), 'ESTT can\'t be cheaper USDT');
+      // estt
+      await this.exchange.trade(this.estt.address, new BN('100000'), this.usdt.address, usdt('0.2'), ZERO_ADDRESS, {from: alice});
+      await expectRevert(this.exchange.trade(this.estt.address, new BN('100001'), this.usdt.address, usdt('0.2'), ZERO_ADDRESS, {from: alice}), 'ESTT can\'t be cheaper USDT');
     });
 
     it('should revert if src or dest not correct', async () => {
@@ -116,6 +128,20 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
 
       await this.exchange.setExchangeFee(new BN('1002000000000000000'), { from: owner });
       (await this.exchange.exchangeFee()).should.be.bignumber.equal(new BN('1002000000000000000')); // 1 + 0.2%
+    });
+
+    it('should set/get min price', async () => {
+      (await this.exchange.minPrice()).should.be.bignumber.equal(new BN('1000000')); // 1
+
+      await expectRevert(this.exchange.setMinPrice(new BN('900000'), { from: owner }), 'min possible price not in range [1, 9999]');
+      await expectRevert(this.exchange.setMinPrice(new BN('10000000000'), { from: owner }), 'min possible price not in range [1, 9999]');
+      await expectRevert(this.exchange.setMinPrice(new BN('1000000'), { from: alice }), 'Ownable: caller is not the owner');
+
+      await this.exchange.setMinPrice(new BN('2000000'), { from: owner });
+      (await this.exchange.minPrice()).should.be.bignumber.equal(new BN('2000000')); // 2
+
+      await this.exchange.setMinPrice(new BN('1000000'), { from: owner });
+      (await this.exchange.minPrice()).should.be.bignumber.equal(new BN('1000000')); // 1
     });
 
     it('should get prices', async () => {
@@ -204,6 +230,24 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('69999999000000'));
     });
 
+    it('should instant buy ESTT by 1:1 price, min price 2u/1e', async () => {
+      await this.exchange.setMinPrice(new BN('2000000'), { from: owner });
+      (await this.exchange.minPrice()).should.be.bignumber.equal(new BN('2000000'));
+      //usdt
+      await this.usdt.transfer(bob, new BN('1000000'), { from: owner });
+      await this.usdt.approve(this.exchange.address, usdt('1'), { from: bob });
+      (await this.estt.balanceOf(bob)).should.be.bignumber.equal(new BN('0'));
+      (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('0'));
+      (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('70000000000000'));
+      await this.exchange.trade(this.usdt.address, new BN('1000000'), this.estt.address, new BN('500000'), ZERO_ADDRESS, { from: bob }); // 1 usdt -> 1 estt
+      const bob_orders_0 = await this.exchange.getMyOrders({ from: bob });
+      assertEqual(bob_orders_0.length, 0);
+      (await this.estt.balanceOf(bob)).should.be.bignumber.equal(new BN('500000'));
+      (await this.usdt.balanceOf(bob)).should.be.bignumber.equal(usdt('0'));
+      (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(usdt('1'));
+      (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('69999999500000'));
+    });
+
     it ('should instant sell ESTT by 1:1 price', async () => {
       // "before" block
       await this.usdt.transfer(bob, new BN('1000000'), { from: owner });
@@ -221,6 +265,27 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       (await this.estt.balanceOf(bob)).should.be.bignumber.equal(new BN('0'));
       (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(usdt('0.008'));
       (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('69999999992000'));
+    });
+
+    it ('should instant sell ESTT by 1:1 price, min price 2u/1e', async () => {
+      await this.exchange.setMinPrice(new BN('2000000'), { from: owner });
+      (await this.exchange.minPrice()).should.be.bignumber.equal(new BN('2000000'));
+      // "before" block
+      await this.usdt.transfer(bob, new BN('1000000'), { from: owner });
+      await this.usdt.approve(this.exchange.address,new BN('1000000'), { from: bob });
+      await this.exchange.trade(this.usdt.address, new BN('1000000'), this.estt.address, new BN('500000'), ZERO_ADDRESS, { from: bob }); // 1 usdt -> 1 estt
+      //estt
+      (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('1000000'));
+      (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('69999999500000'));
+      await this.estt.approve(this.exchange.address, new BN('1000000'), { from: bob });
+      (await this.usdt.balanceOf(bob)).should.be.bignumber.equal(usdt('0'));
+      await this.exchange.trade(this.estt.address, new BN('500000'), this.usdt.address, usdt('1'), ZERO_ADDRESS, { from: bob }); // 1 usdt -> 1 estt
+      const bob_orders_1 = await this.exchange.getMyOrders({ from: bob });
+      assertEqual(bob_orders_1.length, 0);
+      (await this.usdt.balanceOf(bob)).should.be.bignumber.equal(usdt('0.992'));
+      (await this.estt.balanceOf(bob)).should.be.bignumber.equal(new BN('0'));
+      (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(usdt('0.008'));
+      (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('69999999996000'));
     });
   });
 

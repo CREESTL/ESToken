@@ -270,22 +270,12 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
     });
 
     it('should place few orders continue trade', async () => {
-      // return;
       await this.estt.transfer(bob, estt('5000000'), { from: owner });
       await this.estt.approve(this.exchange.address, estt('5000000'), { from: bob });
       await this.usdt.approve(this.exchange.address, usdt('700000000'), { from: owner });
       (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('0'));
       (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(estt('70000000'));
-      await this.exchange.trade(this.usdt.address, usdt('70000000'), this.estt.address, estt('70000000'), ZERO_ADDRESS, { from: owner }); // 1 usdt -> 1 estt
-      //             let uidss = await this.exchange.getMyOrders({ from: owner });
-      //       console.log("\t\t\t", uidss.length);
-      //       let orderr = [];
-      //       if (uidss.length > 0)
-      //       orderr = await this.exchange.getOrderByUid(uidss[0], { from: owner });
-      //       for (let key in orderr) {
-      //         console.log("\t\t", orderr[key].toString(10));
-      //       }
-      // return;
+      await this.exchange.trade(this.usdt.address, usdt('70000000'), this.estt.address, estt('70000000'), ZERO_ADDRESS, { from: owner });
       (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(estt('0'));
       let response;
       let amount1 = usdt('1');
@@ -333,6 +323,55 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
       uids = await this.exchange.getMyOrders({ from: owner });
       let order = await this.exchange.getOrderByUid(uids[0], { from: owner });
       expect(order[4].toString(10)).to.be.equal('49601225');
+    });
+
+    it('should place few orders, change min price, continue trade only after price back', async () => {
+      await this.exchange.setMinPrice(new BN('2000000'), { from: owner });
+      (await this.exchange.minPrice()).should.be.bignumber.equal(new BN('2000000'));
+
+      await this.estt.transfer(bob, estt('5000000'), { from: owner });
+      await this.estt.approve(this.exchange.address, estt('5000000'), { from: bob });
+      await this.usdt.approve(this.exchange.address, usdt('700000000'), { from: owner });
+      (await this.usdt.balanceOf(this.exchange.address)).should.be.bignumber.equal(new BN('0'));
+      (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(estt('70000000'));
+      await this.exchange.trade(this.usdt.address, usdt('140000000'), this.estt.address, estt('70000000'), ZERO_ADDRESS, { from: owner });
+      (await this.estt.balanceOf(this.exchange.address)).should.be.bignumber.equal(estt('0'));
+      let response;
+      let amount1 = usdt('2');
+      let amount2 = estt('1');
+      let total1 = new BN('0');
+      let total2 = new BN('0');
+      let count = 25;
+      for (let i = 0; i < count; ++i) {
+        amount1 = amount1.add(new BN('1'));
+        response = await this.exchange.trade(this.estt.address, amount2, this.usdt.address, amount1, ZERO_ADDRESS, { from: bob });
+        total1 = total1.add(amount1);
+        total2 = total2.add(amount2);
+        console.log("\ttrade EST/USDT gas used =", response.receipt.gasUsed);
+      }
+      total1 = amount1.mul(new BN(count));
+
+      let uids = await this.exchange.getMyOrders({ from: bob });
+      expect(uids.length).to.be.equal(count);
+
+      await this.exchange.setMinPrice(new BN('1000000'), { from: owner });
+      (await this.exchange.minPrice()).should.be.bignumber.equal(new BN('1000000'));
+
+      response = await this.exchange.trade(this.usdt.address, total1, this.estt.address, total2.add(total2), ZERO_ADDRESS, { from: owner });
+      console.log("\ttrade USDT/EST gas used =", response.receipt.gasUsed);
+      uids = await this.exchange.getMyOrders({ from: bob });
+      console.log("\tfilled orders =", count - uids.length, "/", count);
+      expect(uids.length).to.be.equal(25);
+
+      uids = await this.exchange.getMyOrders({ from: owner });
+      expect(uids.length).to.be.equal(1);
+
+      response = await this.exchange.trade(this.usdt.address, total1, this.estt.address, total2, ZERO_ADDRESS, { from: owner });
+      console.log("\ttrade USDT/EST gas used =", response.receipt.gasUsed);
+      uids = await this.exchange.getMyOrders({ from: bob });
+      console.log("\tfilled orders =", count - uids.length, "/", count);
+      count = uids.length;
+      expect(uids.length).to.be.equal(0);
     });
   });
 

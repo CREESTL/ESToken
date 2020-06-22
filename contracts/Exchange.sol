@@ -48,6 +48,7 @@ contract Exchange is ExchangeInterface, Ownable {
     uint8 constant private USDT_2_ESTT = 2;
     uint256 private _referralBonus;
     uint256 private _exchangeFee;
+    uint256 private _minESTTPrice;
     mapping(address => OrderBook) private _orderBooks; // srcToken -> OrderBook
     mapping(uint256 => address) private _usersAddresses; // uint32(address) -> address
     mapping(address => mapping(address => TokenEntity)) private _ledger; // user, ESTT/USDT pair => TokenEntity
@@ -75,6 +76,7 @@ contract Exchange is ExchangeInterface, Ownable {
         _USDTDecimals = 10 ** _USDTDecimals;
         _referralBonus = 500_000_000_000_000; // +0.05%
         _exchangeFee = 8_000_000_000_000_000; // 0.8% fee from estt->usdt tx
+        _minESTTPrice = _ESTTDecimals;
     }
 
     function isExchange() pure external override returns (bool) {
@@ -97,6 +99,16 @@ contract Exchange is ExchangeInterface, Ownable {
     
     function exchangeFee() external view returns (uint256) {
         return _exchangeFee.add(10 ** 18);
+    }
+
+    function setMinPrice(uint256 newMinPrice) external onlyOwner {
+        require(newMinPrice >= 1000000, "min possible price not in range [1, 9999]");
+        require(newMinPrice < 10000000000, "min possible price not in range [1, 9999]");
+        _minESTTPrice = _USDTDecimals.mul(_ESTTDecimals).div(newMinPrice);
+    }
+    
+    function minPrice() external view returns (uint256) {
+        return _ESTTDecimals.mul(_USDTDecimals).div(_minESTTPrice);
     }
 
     function getNextPrice (address tokenSrc, uint256 price) external view returns (uint256) {
@@ -241,7 +253,11 @@ contract Exchange is ExchangeInterface, Ownable {
                 destKey = destOrderBook.tree.next(destKey);
         }
 
-        if (maxPrice == (_decimals(order.src))) {
+        if (
+            (order.src == _ESTTAddress && maxPrice == _minESTTPrice)
+            ||
+            (order.src == _USDTAddress && maxPrice == _ESTTDecimals.mul(_USDTDecimals).div(_minESTTPrice))
+        ) {
             _match(order, Order(0, address(0), 0, 0, 0), maxPrice);
         }
         return order.srcAmount.sub(order.filled);
@@ -306,10 +322,10 @@ contract Exchange is ExchangeInterface, Ownable {
         uint256 price = _getPrice(order);
         if (order.src == _ESTTAddress) {
             require(order.dest == _USDTAddress, "wrong dest");
-            require(price <= (_ESTTDecimals), "ESTT can't be cheaper USDT");
+            require(price <= _minESTTPrice, "ESTT can't be cheaper USDT");
         } else if (order.src == _USDTAddress) {
             require(order.dest == _ESTTAddress, "wrong dest");
-            require(price >= (_USDTDecimals), "ESTT can't be cheaper USDT");
+            require(price >= _ESTTDecimals.mul(_USDTDecimals).div(_minESTTPrice), "ESTT can't be cheaper USDT");
         } else {
             revert("wrong src");
         }
