@@ -44,16 +44,21 @@ ES Token Contract
 **change interests**
 
 - set daily interest (token), 18 decimals
+
 await this.esToken.setDailyInterest(new BN('1000200000000000000'), { from: owner });
 
 - set referral interest (token), 18 decimals
+
 await this.esToken.setReferralInterest(new BN('1000100000000000000'), { from: owner });
 
 - set referral bonus (exchange), 18 decimals
+
 await this.exchange.setReferralBonus(new BN('1000500000000000000'), { from: owner });
 
 - set exchange fee (exchange), 18 decimals
+
 await this.exchange.setExchangeFee(new BN('1008000000000000000'), { from: owner });
 
 - set min estt price (exchange), 6 decimals (from 1 to 9999)
+
 await this.exchange.setMinPrice(new BN('1000000'), { from: owner });
