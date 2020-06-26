@@ -208,6 +208,16 @@ contract('Exchange', async ([owner, alice, bob, carol]) => {
   });
 
   describe('Orders tests', async () => {
+    it('should accrued interest', async () => {
+      await this.usdt.transfer(alice, usdt('100'), { from: owner });
+      await this.exchange.setReferralBonus(new BN('1000000000000000000'), { from: owner });
+      await this.usdt.approve(this.exchange.address, usdt('100'), { from: alice });
+      await this.exchange.trade(this.usdt.address, usdt('1'), this.estt.address, estt('1'), bob, { from: alice });
+      await this.exchange.trade(this.usdt.address, usdt('99'), this.estt.address, estt('99'), bob, { from: alice });
+      await time.increase(new BN('86400'));
+      (await this.estt.balanceOf(bob)).should.be.bignumber.equal(new BN('10000'));
+    });
+
     it('should instant buy ESTT by 1:1 price', async () => {
       await this.usdt.transfer(carol, new BN('1000000'), { from: owner });
       await this.usdt.approve(alice, new BN('1000000'), { from: carol });
