@@ -47,9 +47,8 @@ contract ESToken is IESToken, ERC20, Ownable {
         _;
     }
 
-    constructor(string memory name_, string memory symbol_)
-        ERC20("ESToken", "ESTT")
-    {
+    constructor() ERC20("ESToken", "ESTT") {
+        // Change default decimals from 18 to 6
         _setupDecimals(6);
         _dailyInterest = 200_000_000_000_000; // +0.02%
         _referralInterest = 100_000_000_000_000; // +0.01%
