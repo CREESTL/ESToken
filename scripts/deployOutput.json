@@ -1,0 +1,62 @@
+{
+  "rinkeby": {
+    "Bridge": {
+      "address": "0x7bA17c286dFC01188B1a5b333BCDF28D25fbf56E",
+      "verification": "https://rinkeby.etherscan.io/address/0x7bA17c286dFC01188B1a5b333BCDF28D25fbf56E#code"
+    },
+    "WrappedTokenFactory": {
+      "address": "0x00a35F9853F2F64Adf887e776bd88a2400222836",
+      "verification": "https://rinkeby.etherscan.io/address/0x00a35F9853F2F64Adf887e776bd88a2400222836#code"
+    }
+  },
+  "mumbai": {
+    "Bridge": {
+      "address": "0x32784Fe061F92746e036124160b169BC36fc98b5",
+      "verification": "https://mumbai.polygonscan.com/address/0x32784Fe061F92746e036124160b169BC36fc98b5#code"
+    },
+    "WrappedTokenFactory": {
+      "address": "0xf76397b8a3BcE81694127537152103555F2cEC37",
+      "verification": "https://mumbai.polygonscan.com/address/0xf76397b8a3BcE81694127537152103555F2cEC37#code"
+    }
+  },
+  "chapel": {
+    "Bridge": {
+      "address": "0x00a35F9853F2F64Adf887e776bd88a2400222836",
+      "verification": "https://testnet.bscscan.com/address/0x00a35F9853F2F64Adf887e776bd88a2400222836#code"
+    },
+    "WrappedTokenFactory": {
+      "address": "0x25d49C53009ED867c7E429d1b979F6F4e8125cFA",
+      "verification": "https://testnet.bscscan.com/address/0x00a35F9853F2F64Adf887e776bd88a2400222836#code"
+    }
+  },
+  "ethereum": {
+    "Bridge": {
+      "address": "",
+      "verification": ""
+    },
+    "WrappedTokenFactory": {
+      "address": "",
+      "verification": ""
+    }
+  },
+  "polygon": {
+    "Bridge": {
+      "address": "",
+      "verification": ""
+    },
+    "WrappedTokenFactory": {
+      "address": "",
+      "verification": ""
+    }
+  },
+  "bsc": {
+    "Bridge": {
+      "address": "",
+      "verification": ""
+    },
+    "WrappedTokenFactory": {
+      "address": "",
+      "verification": ""
+    }
+  }
+}
