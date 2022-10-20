@@ -1,10 +1,13 @@
-.idea/
 node_modules
-build
-.coverage/
-.coverage-contracts/
-coverage/
+.env
+coverage
 coverage.json
+typechain
+typechain-types
 
+#Hardhat files
+cache
+artifacts
+
+*.env
 package-lock.json
-
