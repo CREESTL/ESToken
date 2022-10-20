@@ -11,6 +11,7 @@
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.1.0",
     "@openzeppelin/contracts": "^4.7.2",
+    "@openzeppelin/test-helpers": "^0.5.16",
     "chai": "^4.3.6",
     "delay": "^5.0.0",
     "dotenv": "^16.0.1",
