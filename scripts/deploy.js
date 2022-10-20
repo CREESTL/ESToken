@@ -5,30 +5,29 @@ const fs = require("fs");
 const path = require("path");
 const delay = require("delay");
 
-const { ACC_ADDRESS } = process.env;
-
 // JSON file to keep information about previous deployments
 const OUTPUT_DEPLOY = require("./deployOutput.json");
 
 let contractName;
+let token;
+let usdt;
+let exchange;
 
 async function main() {
-  let [owner, addr1, addr2, addr3, ...addrs] = await ethers.getSigners();
-
   console.log(`[NOTICE!] Chain of deployment: ${network.name}`);
 
   // ====================================================
 
-  // Contract #1: Bridge
+  // Contract #1: ESToken
 
   // Deploy
-  contractName = "Bridge";
+  contractName = "ESToken";
   console.log(`[${contractName}]: Start of Deployment...`);
-  _contractProto = await ethers.getContractFactory(contractName);
-  contractDeployTx = await _contractProto.deploy(ACC_ADDRESS);
-  bridge = await contractDeployTx.deployed();
+  let _contractProto = await ethers.getContractFactory(contractName);
+  let contractDeployTx = await _contractProto.deploy();
+  token = await contractDeployTx.deployed();
   console.log(`[${contractName}]: Deployment Finished!`);
-  OUTPUT_DEPLOY[network.name][contractName].address = bridge.address;
+  OUTPUT_DEPLOY[network.name][contractName].address = token.address;
 
   // Verify
   console.log(`[${contractName}]: Start of Verification...`);
@@ -39,19 +38,11 @@ async function main() {
   // Write deployment and verification info into the JSON file before actual verification
   // The reason is that verification may fail if you try to verify the same contract again
   // And the JSON file will not change
-  OUTPUT_DEPLOY[network.name][contractName].address = bridge.address;
-  if (network.name === "polygon") {
-    url = "https://polygonscan.com/address/" + bridge.address + "#code";
-  } else if (network.name === "mumbai") {
-    url = "https://mumbai.polygonscan.com/address/" + bridge.address + "#code";
-  } else if (network.name === "ethereum") {
-    url = "https://etherscan.io/address/" + bridge.address + "#code";
-  } else if (network.name === "rinkeby") {
-    url = "https://rinkeby.etherscan.io/address/" + bridge.address + "#code";
-  } else if (network.name === "bsc") {
-    url = "https://bscscan.com/address/" + bridge.address + "#code";
+  OUTPUT_DEPLOY[network.name][contractName].address = token.address;
+  if (network.name === "bsc") {
+    url = "https://bscscan.com/address/" + token.address + "#code";
   } else if (network.name === "chapel") {
-    url = "https://testnet.bscscan.com/address/" + bridge.address + "#code";
+    url = "https://testnet.bscscan.com/address/" + token.address + "#code";
   }
   OUTPUT_DEPLOY[network.name][contractName].verification = url;
 
@@ -60,8 +51,8 @@ async function main() {
   // be done correctly!
   try {
     await hre.run("verify:verify", {
-      address: bridge.address,
-      constructorArguments: [ACC_ADDRESS],
+      address: token.address,
+      constructorArguments: ["ESToken", "ESTT"],
     });
   } catch (error) {
     console.error(error);
@@ -70,49 +61,77 @@ async function main() {
 
   // ====================================================
 
-  // Contract #2: WrappedERCFactory
+  // Contract #2: Tether Token
 
   // Deploy
-  contractName = "WrappedTokenFactory";
+  contractName = "TetherToken";
   console.log(`[${contractName}]: Start of Deployment...`);
   _contractProto = await ethers.getContractFactory(contractName);
-  contractDeployTx = await _contractProto.deploy();
-  factory = await contractDeployTx.deployed();
+  contractDeployTx = await _contractProto.deploy(
+    "1_000_000_000_000_000_000_000",
+    "USDT",
+    "USDT",
+    6
+  );
+  usdt = await contractDeployTx.deployed();
   console.log(`[${contractName}]: Deployment Finished!`);
-  OUTPUT_DEPLOY[network.name][contractName].address = factory.address;
+  OUTPUT_DEPLOY[network.name][contractName].address = usdt.address;
 
   // Verify
   console.log(`[${contractName}]: Start of Verification...`);
 
-  // Sleep for 90 seconds, otherwise block explorer will fail
   await delay(90000);
 
-  // Write deployment and verification info into the JSON file before actual verification
-  // The reason is that verification may fail if you try to verify the same contract again
-  // And the JSON file will not change
-  OUTPUT_DEPLOY[network.name][contractName].address = factory.address;
-  if (network.name === "polygon") {
-    url = "https://polygonscan.com/address/" + factory.address + "#code";
-  } else if (network.name === "mumbai") {
-    url = "https://mumbai.polygonscan.com/address/" + factory.address + "#code";
-  } else if (network.name === "ethereum") {
-    url = "https://etherscan.io/address/" + factory.address + "#code";
-  } else if (network.name === "rinkeby") {
-    url = "https://rinkeby.etherscan.io/address/" + factory.address + "#code";
-  } else if (network.name === "bsc") {
-    url = "https://bscscan.com/address/" + factory.address + "#code";
+  OUTPUT_DEPLOY[network.name][contractName].address = usdt.address;
+  if (network.name === "bsc") {
+    url = "https://bscscan.com/address/" + usdt.address + "#code";
   } else if (network.name === "chapel") {
-    url = "https://testnet.bscscan.com/address/" + bridge.address + "#code";
+    url = "https://testnet.bscscan.com/address/" + usdt.address + "#code";
+  }
+  OUTPUT_DEPLOY[network.name][contractName].verification = url;
+
+  try {
+    await hre.run("verify:verify", {
+      address: usdt.address,
+      // TODO what amount? what name, symbol, what decimals?
+      constructorArguments: ["1_000_000_000_000_000_000_000", "USDT", "USDT", 6],
+    });
+  } catch (error) {
+    console.error(error);
+  }
+  console.log(`[${contractName}]: Verification Finished!`);
+
+  // ====================================================
+
+  // Contract #3: Exchange
+
+  // Deploy
+  contractName = "Exchange";
+  console.log(`[${contractName}]: Start of Deployment...`);
+  _contractProto = await ethers.getContractFactory(contractName);
+  contractDeployTx = await _contractProto.deploy(token.address, usdt.address);
+  exchange = await contractDeployTx.deployed();
+  console.log(`[${contractName}]: Deployment Finished!`);
+  OUTPUT_DEPLOY[network.name][contractName].address = exchange.address;
+
+  // Verify
+  console.log(`[${contractName}]: Start of Verification...`);
+
+  await delay(90000);
+
+  OUTPUT_DEPLOY[network.name][contractName].address = exchange.address;
+  if (network.name === "bsc") {
+    url = "https://bscscan.com/address/" + exchange.address + "#code";
+  } else if (network.name === "chapel") {
+    url = "https://testnet.bscscan.com/address/" + exchange.address + "#code";
   }
 
   OUTPUT_DEPLOY[network.name][contractName].verification = url;
 
-  // Provide all contract's dependencies as separate files
-  // NOTE It may fail with "Already Verified" error. Do not pay attention to it. Verification will
-  // be done correctly!
   try {
     await hre.run("verify:verify", {
-      address: factory.address,
+      address: exchange.address,
+      constructorArguments: [token.address, usdt.address],
     });
   } catch (error) {
     console.error(error);
