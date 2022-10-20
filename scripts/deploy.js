@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT 
+// SPDX-License-Identifier: MIT
 
 const { ethers, network } = require("hardhat");
 const fs = require("fs");
@@ -10,11 +10,9 @@ const { ACC_ADDRESS } = process.env;
 // JSON file to keep information about previous deployments
 const OUTPUT_DEPLOY = require("./deployOutput.json");
 
-
 let contractName;
 
 async function main() {
-
   let [owner, addr1, addr2, addr3, ...addrs] = await ethers.getSigners();
 
   console.log(`[NOTICE!] Chain of deployment: ${network.name}`);
@@ -34,7 +32,7 @@ async function main() {
 
   // Verify
   console.log(`[${contractName}]: Start of Verification...`);
-  
+
   // Sleep for 90 seconds, otherwise block explorer will fail
   await delay(90000);
 
@@ -56,22 +54,20 @@ async function main() {
     url = "https://testnet.bscscan.com/address/" + bridge.address + "#code";
   }
   OUTPUT_DEPLOY[network.name][contractName].verification = url;
-  
+
   // Provide all contract's dependencies as separate files
   // NOTE It may fail with "Already Verified" error. Do not pay attention to it. Verification will
   // be done correctly!
-  try { 
+  try {
     await hre.run("verify:verify", {
       address: bridge.address,
-      constructorArguments: [
-        ACC_ADDRESS
-      ]
+      constructorArguments: [ACC_ADDRESS],
     });
   } catch (error) {
     console.error(error);
   }
   console.log(`[${contractName}]: Verification Finished!`);
-  
+
   // ====================================================
 
   // Contract #2: WrappedERCFactory
@@ -87,7 +83,7 @@ async function main() {
 
   // Verify
   console.log(`[${contractName}]: Start of Verification...`);
-  
+
   // Sleep for 90 seconds, otherwise block explorer will fail
   await delay(90000);
 
@@ -110,11 +106,11 @@ async function main() {
   }
 
   OUTPUT_DEPLOY[network.name][contractName].verification = url;
-  
+
   // Provide all contract's dependencies as separate files
   // NOTE It may fail with "Already Verified" error. Do not pay attention to it. Verification will
   // be done correctly!
-  try { 
+  try {
     await hre.run("verify:verify", {
       address: factory.address,
     });
@@ -125,14 +121,13 @@ async function main() {
 
   // ====================================================
 
-  console.log(`See Results in "${__dirname + '/deployOutput.json'}" File`);
-  
+  console.log(`See Results in "${__dirname + "/deployOutput.json"}" File`);
+
   fs.writeFileSync(
     path.resolve(__dirname, "./deployOutput.json"),
     JSON.stringify(OUTPUT_DEPLOY, null, "  ")
   );
 }
-
 
 main()
   .then(() => process.exit(0))
