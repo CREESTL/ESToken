@@ -1,16 +1,20 @@
-pragma solidity ^0.6.2;
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
-import "./Interfaces.sol";
+import "./interfaces/IExchange.sol";
+import "./interfaces/IESToken.sol";
+import "./interfaces/IERC20.sol";
+import "./ERC20.sol";
 
-
-contract Exchange is ExchangeInterface, Ownable {
-    using SafeMath for uint256;
+contract Exchange is IExchange, Ownable {
     using Address for address;
     using BokkyPooBahsRedBlackTreeLibrary for BokkyPooBahsRedBlackTreeLibrary.Tree;
+    using SafeMath for uint256;
 
     struct Order {
         // 32 bits for user, 8 bits for type, 186 for order uid (0x<186><8><32>)
@@ -54,7 +58,7 @@ contract Exchange is ExchangeInterface, Ownable {
     mapping(address => mapping(address => TokenEntity)) private _ledger; // user, ESTT/USDT pair => TokenEntity
 
     IERC20 private _ESTT;
-    IERC20USDTCOMPATIBLE private _USDT;
+    IERC20 private _USDT;
     uint256 private _ESTTDecimals;
     uint256 private _USDTDecimals;
     address private _ESTTAddress;
@@ -62,13 +66,13 @@ contract Exchange is ExchangeInterface, Ownable {
 
     uint192 private _lastUid;
 
-    constructor (address esttAddress, address usdtAddress) public {
-        ESTokenInterface potentialESTT = ESTokenInterface(esttAddress);
+    constructor (address esttAddress, address usdtAddress) {
+        IESToken potentialESTT = IESToken(esttAddress);
         require(potentialESTT.isESToken(), "address doesn't match to ESTT");
-        _ESTT = IERC20(esttAddress);
+        _ESTT = ERC20(esttAddress);
         _ESTTDecimals = 10 ** uint256(_ESTT.decimals());
         _ESTTAddress = esttAddress;
-        IERC20USDTCOMPATIBLE potentialUSDT = IERC20USDTCOMPATIBLE(usdtAddress);
+        IERC20 potentialUSDT = ERC20(usdtAddress);
         _USDTDecimals = potentialUSDT.decimals();
         require(_USDTDecimals == 6, "address doesn't match to USDT");
         _USDT = potentialUSDT;
@@ -120,14 +124,14 @@ contract Exchange is ExchangeInterface, Ownable {
     }
 
     function getMyOrders () external view returns (uint256[] memory) {
-        uint256 lengthESTT = _ledger[_msgSender()][_ESTTAddress].orders.length;
-        uint256 lengthUSDT = _ledger[_msgSender()][_USDTAddress].orders.length;
+        uint256 lengthESTT = _ledger[msg.sender][_ESTTAddress].orders.length;
+        uint256 lengthUSDT = _ledger[msg.sender][_USDTAddress].orders.length;
         uint256[] memory myOrderUids = new uint256[](lengthESTT + lengthUSDT);
         for (uint256 i = 0; i < lengthESTT; ++i) {
-            myOrderUids[i] = _ledger[_msgSender()][_ESTTAddress].orders[i].uid;
+            myOrderUids[i] = _ledger[msg.sender][_ESTTAddress].orders[i].uid;
         }
         for (uint256 i = 0; i < lengthUSDT; ++i) {
-            myOrderUids[i + lengthESTT] = _ledger[_msgSender()][_USDTAddress].orders[i].uid;
+            myOrderUids[i + lengthESTT] = _ledger[msg.sender][_USDTAddress].orders[i].uid;
         }
         return myOrderUids;
     }
@@ -145,13 +149,13 @@ contract Exchange is ExchangeInterface, Ownable {
         uint256 destAmount,
         address referral
     ) external {
-        uint32 userId = uint32(_msgSender());
+        uint32 userId = uint32(uint160(msg.sender));
         if (_usersAddresses[userId] == address(0)) {
-            _usersAddresses[userId] = _msgSender();
+            _usersAddresses[userId] = msg.sender;
         }
-        require(_usersAddresses[userId] == _msgSender(), "user address already exist");
+        require(_usersAddresses[userId] == msg.sender, "user address already exist");
         MemoryOrder memory order = MemoryOrder(
-            _msgSender(),
+            msg.sender,
             src,
             srcAmount,
             dest,
@@ -159,26 +163,26 @@ contract Exchange is ExchangeInterface, Ownable {
             0
         );
         _orderCheck(order);
-        _ledger[_msgSender()][src].reservedBalance = _ledger[_msgSender()][src].reservedBalance.add(srcAmount);
+        _ledger[msg.sender][src].reservedBalance = _ledger[msg.sender][src].reservedBalance.add(srcAmount);
         // less than 10 wei
         if(_trade(order) > 10) {
             _insertOrder(order, src);
         }
-        ESTokenInterface esttInerface = ESTokenInterface(_ESTTAddress);
+        IESToken esttInerface = IESToken(_ESTTAddress);
         if (referral != address(0) &&
-            esttInerface.parentReferral(_msgSender()) == address(0) &&
+            esttInerface.parentReferral(msg.sender) == address(0) &&
             src == _USDTAddress
         ) {
             uint256 price = _getPriceInverted(order);
             uint256 orderBonus = order.filled.mul(price).div(_USDTDecimals);
-            esttInerface.setParentReferral(_msgSender(), referral, orderBonus.mul(_referralBonus).div(10 ** 18));
+            esttInerface.setParentReferral(msg.sender, referral, orderBonus.mul(_referralBonus).div(10 ** 18));
         }
     }
 
     function continueTrade (uint256 uid) external {
         (address tokenSrcAddress, address user, uint256 index) = _unpackUid(uid);
         Order memory storageOrder = _ledger[user][tokenSrcAddress].orders[index];
-        require(_msgSender() == storageOrder.trader, "has no rights to continue trade");
+        require(msg.sender == storageOrder.trader, "has no rights to continue trade");
         MemoryOrder memory order = MemoryOrder(
             storageOrder.trader,
             tokenSrcAddress,
@@ -207,7 +211,7 @@ contract Exchange is ExchangeInterface, Ownable {
             storageOrder.destAmount,
             storageOrder.filled
         );
-        require(_msgSender() == order.trader, "doesn't have rights to cancel order");
+        require(msg.sender == order.trader, "doesn't have rights to cancel order");
         uint256 restAmount = order.srcAmount.sub(order.filled);
         _ledger[order.trader][order.src].reservedBalance = _ledger[order.trader][order.src].reservedBalance.sub(restAmount);
         _removeOrder(uid, order.src, order.trader);
@@ -266,7 +270,7 @@ contract Exchange is ExchangeInterface, Ownable {
     function _insertOrder (MemoryOrder memory order, address src) internal {
         _lastUid++;
         Order memory storageOrder = Order(
-            _packUid(_lastUid, src, _msgSender()),
+            _packUid(_lastUid, src, msg.sender),
             order.trader,
             order.srcAmount,
             order.destAmount,
@@ -424,7 +428,7 @@ contract Exchange is ExchangeInterface, Ownable {
 
     function _packUid (uint256 index, address tokenSrc, address userAddress) internal view returns (uint256) {
         uint8 tradeType = tokenSrc == _ESTTAddress ? ESTT_2_USDT : USDT_2_ESTT;
-        return index << 40 | (uint64(tradeType) << 32) | uint32(userAddress);
+        return index << 40 | (uint64(tradeType) << 32) | uint32(uint160(userAddress));
     }
 
     function _unpackUid (uint256 uid) internal view returns (address, address, uint256) {

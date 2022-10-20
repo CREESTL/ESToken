@@ -1,15 +1,17 @@
-pragma solidity ^0.6.2;
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./ERC20.sol";
-import "./Interfaces.sol";
+import "./interfaces/IESToken.sol";
+import "./interfaces/IExchange.sol";
 
-
-contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
-    using SafeMath for uint256;
+contract ESToken is IESToken, ERC20, Ownable {
     using Address for address;
+    using SafeMath for uint256;
 
     struct Referral {
         address user;
@@ -37,11 +39,11 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     mapping (address => Referral[]) private _referrals;
 
     modifier onlyExchange () {
-        require(_msgSender() == address(_exchangeAddress), "caller is not allowed to do some");
+        require(msg.sender == address(_exchangeAddress), "caller is not allowed to do some");
         _;
     }
 
-    constructor () public ERC20("ESToken", "ESTT") {
+    constructor (string memory name_, string memory symbol_) ERC20("ESToken", "ESTT") {
         _setupDecimals(6);
         _dailyInterest = 200_000_000_000_000; // +0.02%
         _referralInterest = 100_000_000_000_000; // +0.01%
@@ -51,14 +53,14 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     }
 
     function init(address newExchangeAddress) external onlyOwner {
-        ExchangeInterface exchangeI = ExchangeInterface(newExchangeAddress);
+        IExchange exchangeI = IExchange(newExchangeAddress);
         require(exchangeI.isExchange(), "ESToken: newExchangeAddress does not match the exchange");
         require(_reserveAddress == address(0), "ESToken: re-initialization");
         _reserveAddress = RESERVE_ADDRESS;
         _exchangeAddress = newExchangeAddress;
         _mint(_exchangeAddress, 70_000_000 * 10 ** uint256(decimals()));
         _mint(_reserveAddress, 25_000_000 * 10 ** uint256(decimals()));
-        _mint(_msgSender(), 5_000_000 * 10 ** uint256(decimals()));
+        _mint(msg.sender, 5_000_000 * 10 ** uint256(decimals()));
     }
 
     function isESToken() pure external override returns (bool) {
@@ -116,10 +118,10 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     }
 
     function getMyReferrals() public view returns (address[] memory) {
-        uint256 length = _referrals[_msgSender()].length;
+        uint256 length = _referrals[msg.sender].length;
         address[] memory addresses = new address[](length);
         for (uint i = 0; i < length; ++i) {
-            addresses[i] = _referrals[_msgSender()][i].user;
+            addresses[i] = _referrals[msg.sender][i].user;
         }
         return addresses;
     }
