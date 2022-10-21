@@ -8,6 +8,7 @@ This repository contains contracts of poker game cards marketplace
 [Wallets](#wallets)  
 
 <a name="preq"/>
+
 ### Prerequisites 
 - Install [Node.js](https://nodejs.org/en/download/)
 - Clone this repository
@@ -30,6 +31,7 @@ ACC_PRIVATE_KEY=***your private key***
 :warning:__DO NOT SHARE YOUR .env FILE IN ANY WAY OR YOU RISK TO LOSE ALL YOUR FUNDS__:warning:
 
 <a name="build_and_deploy"/>
+
 ### Build & Deploy  
 The following information will guide you through the process of building and deploying the contracts yourself.
 
@@ -63,6 +65,7 @@ After contracts get deployed, you can find their addresses in `scripts/remote/de
 Please note that all deployed contracts __are verified__ on either [BscScan](https://bscscan.com/) or [BscTestScan](https://testnet.bscscan.com/). 
 
 <a name="wallets"/>
+
 ### Wallets
 For deployment you will need to use either _your existing wallet_ or _a generated one_. 
 
