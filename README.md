@@ -1,63 +1,80 @@
-# ES Token Contract
+# Poker NFT Marketplace
 
-**Requirements**
+This repository contains contracts of poker game cards marketplace
 
-- nodeJS v8.10.0 or later
-- npm v6.13.0 or later
-- truffle v5.1.22 or later
+#### Table on contents
+[Prerequisites](#preq)
+[Build & Deploy](#build_and_deploy)  
+[Wallets](#wallets)  
 
-**Installation**
+<a name="preq"/>
+### Prerequisites 
+- Install [Node.js](https://nodejs.org/en/download/)
+- Clone this repository
+- Navigate to the directory with the cloned code
+- Install [Hardhat](https://hardhat.org/) with `npm install --save-dev hardhat`
+- Install [Truffle](https://trufflesuite.com/docs/truffle/getting-started/installation/) with `npm install -g truffle`
+- Create a [MetaMask](https://metamask.io/) wallet
+  - Install MetaMask Chrome extension
+  - Add [BSC Mainnet](https://academy.binance.com/en/articles/connecting-metamask-to-binance-smart-chain) to MetaMask
+  - Add [BSC Chapel Testnet](https://academy.binance.com/en/articles/connecting-metamask-to-binance-smart-chain) to MetaMask
+- Create an account on [BSCScan](https://bscscan.com/). Go to `Account -> API Keys`. Create a new API key. Copy it to `.env` file
+    ```
+   BSCSCAN_API_KEY=***your API key***
+    ```
+- Create a file called `.env` in the root of the project with the same contents as `.env.example`
+- Copy your wallet's private key (see [Wallets](#wallets)) to `.env` file
+```
+ACC_PRIVATE_KEY=***your private key***
+```
+:warning:__DO NOT SHARE YOUR .env FILE IN ANY WAY OR YOU RISK TO LOSE ALL YOUR FUNDS__:warning:
 
-- git submodule init update
-- npm i
+<a name="build_and_deploy"/>
+### Build & Deploy  
+The following information will guide you through the process of building and deploying the contracts yourself.
 
-**Run tests**
 
-- npm run lint
-- npm run test
+#### 1. Build
+```
+npx hardhat compile
+```
 
-**Make Flattened contract file**
+#### 2. Test
+```
+truffle test
+```
+Move to the "Deploy" step __only__ if all tests pass!
 
-- npm run flatten
+#### 3. Deploy
+а) __Chapel__ test network  
+Make sure you have _enough test BNB_ tokens for testnet in your wallet ([Wallets](#wallets)) . You can get it for free from [faucet](https://testnet.binance.org/faucet-smart).  
+```
+npx hardhat run scripts/deploy.js --network chapel
+```  
+b) __BSC__ main network  
+Make sure you have _enough real BNB_ tokens in your wallet ([Wallets](#wallets)). Deployment to the mainnet costs __real__ BNB!
+```
+npx hardhat run scripts/deploy.js --network bsc
+```
+Deploy to testnet/mainnet takes more than 1.5 minutes to complete. Please, be patient.  
 
-**Deploy**
+After contracts get deployed, you can find their addresses in `scripts/remote/deployOutput.json` file. 
 
-- to log in to the metamask, make sure ETH is enough (open remix after login to metamask)
-- save privKey from an account that's gonna be used for deploy. It's a contract owner! If you lose the key, you'll lose access to all tokens.
-- prepare the remix (https://remix.ethereum.org, turn on "solidity compiler" and "deploy and run trunsactions" plug-ins)
-- copy the code of all contracts into the remix (all content of flattened.sol file)
-- choose compiler version 0.6.2
-- compile (ensure that Enable optimization (under compile button) is set)
-- select ENVIRONMENT - Injected Web3 (will appear under the selected item eth mainnet).
-- in the window "deploy and run trunsactions" select ESToken contract, press Deploy.
-- wait for the transaction to be published
-- choose an Exchange contract
-- next to the "deploy field", enter the address of just deployed ESToken and USDT, for example:
-  0x7cC0742Ce292dDc9a35C32b8f6F33815f14f85f, 0xdac17f958d2ee523a2206206994597c13d831ec7
-- press Deploy
-- waiting for the contract to deploy
-- select ESToken contract (click on address to expand), find init function.
-- enter the address of the newly Exchange contract in the field next to it (for example: 0x72e07c609576804D27F781ee0D844D2fba0EA1af)
-- then press init
+Please note that all deployed contracts __are verified__ on either [BscScan](https://bscscan.com/) or [BscTestScan](https://testnet.bscscan.com/). 
 
-**change interests**
+<a name="wallets"/>
+### Wallets
+For deployment you will need to use either _your existing wallet_ or _a generated one_. 
 
-- set daily interest (token), 18 decimals
+#### Using existing wallet
+If you choose to use your existing wallet, then you will need to be able to export (copy/paste) its private key. For example, you can export private key from your MetaMask wallet.  
+Wallet's address and private key should be pasted into the `.env` file (see [Prerequisites](#preq)).  
 
-await this.esToken.setDailyInterest(new BN('1000200000000000000'), { from: owner });
-
-- set referral interest (token), 18 decimals
-
-await this.esToken.setReferralInterest(new BN('1000100000000000000'), { from: owner });
-
-- set referral bonus (exchange), 18 decimals
-
-await this.exchange.setReferralBonus(new BN('1000500000000000000'), { from: owner });
-
-- set exchange fee (exchange), 18 decimals
-
-await this.exchange.setExchangeFee(new BN('1008000000000000000'), { from: owner });
-
-- set min estt price (exchange), 6 decimals (from 1 to 9999)
-
-await this.exchange.setMinPrice(new BN('1000000'), { from: owner });
+#### Creating a new wallet
+If you choose to create a fresh wallet for this project, you should use `createWallet.js` script :
+```
+npx hardhat run scripts/createWallet.js
+```
+This will generate a single new wallet and show its address and private key. __Save them somewhere else! __
+A new wallet _does not_ hold any tokens. You have to provide it with tokens of your choice.  
+Wallet's address and private key should be pasted into the `.env` file (see [Prerequisites](#prerequisites)).
