@@ -4,10 +4,6 @@
       "address": "",
       "verification": ""
     },
-    "TetherToken": {
-      "address": "",
-      "verification": ""
-    },
     "Exchange": {
       "address": "",
       "verification": ""
@@ -15,10 +11,6 @@
   },
   "bsc": {
     "ESToken": {
-      "address": "",
-      "verification": ""
-    },
-    "TetherToken": {
       "address": "",
       "verification": ""
     },
