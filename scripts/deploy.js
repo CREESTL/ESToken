@@ -12,6 +12,17 @@ let contractName;
 let token;
 let exchange;
 
+// The address of USDT token depends on the chain
+// Addresses from BscScan
+let USDT_ADDRESS;
+if (network.name == "chapel") {
+  // BUSDImplementation
+  USDT_ADDRESS = "0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee";
+} else if (network.name == "bsc") {
+  // Binance-Peg BUSD
+  USDT_ADDRESS = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56";
+}
+
 async function main() {
   console.log(`[NOTICE!] Chain of deployment: ${network.name}`);
 
@@ -67,8 +78,7 @@ async function main() {
   contractName = "Exchange";
   console.log(`[${contractName}]: Start of Deployment...`);
   _contractProto = await ethers.getContractFactory(contractName);
-  // TODO Put real USDT address from testnet or mainnet here as the second parameter!!!
-  contractDeployTx = await _contractProto.deploy(token.address, token.address);
+  contractDeployTx = await _contractProto.deploy(token.address, USDT_ADDRESS);
   exchange = await contractDeployTx.deployed();
   console.log(`[${contractName}]: Deployment Finished!`);
   OUTPUT_DEPLOY[network.name][contractName].address = exchange.address;
