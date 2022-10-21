@@ -68,7 +68,7 @@ interface IERC20USDTCOMPATIBLE {
 
     function approve(address spender, uint256 value) external;
 
-    function decimals() external view returns (uint256);
+    function decimals() external view returns (uint8);
 
     event Approval(
         address indexed owner,
