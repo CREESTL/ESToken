@@ -5,7 +5,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "truffle test",
-    "flatten": "hardhat flatten contracts/ESToken.sol > flat/ESToken.sol && hardhat flatten contracts/Exchange.sol > flat/Exchange.sol",
+    "flatten": "mkdir flat && hardhat flatten contracts/ESToken.sol > flat/ESToken.sol && hardhat flatten contracts/Exchange.sol > flat/Exchange.sol",
     "eslint": "eslint test/",
     "prettier": "prettier --write .",
     "solhint": "solhint ./contracts/*.sol"
