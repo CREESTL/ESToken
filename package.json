@@ -4,7 +4,7 @@
   "description": "ES token smart contract",
   "scripts": {
     "truffle": "truffle",
-    "build": "truffle build",
+    "compile": "truffle compile",
     "test": "truffle test",
     "flatten": "truffle-flattener contracts/Exchange.sol contracts/ESToken.sol >> ./Flattened.sol",
     "eslint": "eslint test/",
