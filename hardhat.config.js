@@ -30,15 +30,13 @@ module.exports = {
     },
     // BSC testnet
     chapel: {
-      url: "https://bsc-dataseed.binance.org/",
-      accounts: [ACC_PRIVATE_KEY],
-      chainId: 56,
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      accounts: [ACC_PRIVATE_KEY]
     },
     // BSC mainnet
     bsc: {
-      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
-      accounts: [ACC_PRIVATE_KEY],
-      chainId: 97,
+      url: "https://bsc-dataseed.binance.org/",
+      accounts: [ACC_PRIVATE_KEY]
     },
   },
   mocha: {
