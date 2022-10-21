@@ -60,8 +60,7 @@ async function main() {
   // be done correctly!
   try {
     await hre.run("verify:verify", {
-      address: token.address,
-      constructorArguments: ["ESToken", "ESTT"],
+      address: token.address
     });
   } catch (error) {
     console.error(error);
@@ -98,7 +97,7 @@ async function main() {
   try {
     await hre.run("verify:verify", {
       address: exchange.address,
-      constructorArguments: [token.address, usdt.address],
+      constructorArguments: [token.address, USDT_ADDRESS],
     });
   } catch (error) {
     console.error(error);

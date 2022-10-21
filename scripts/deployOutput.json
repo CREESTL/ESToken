@@ -1,12 +1,12 @@
 {
   "chapel": {
     "ESToken": {
-      "address": "",
-      "verification": ""
+      "address": "0xEe89732b409088589c0ac95389bb0857b8Fb49D8",
+      "verification": "https://testnet.bscscan.com/address/0xEe89732b409088589c0ac95389bb0857b8Fb49D8#code"
     },
     "Exchange": {
-      "address": "",
-      "verification": ""
+      "address": "0x7dB8a12A36885429A5E4F030AB0CD02CE0cd96E7",
+      "verification": "https://testnet.bscscan.com/address/0x7dB8a12A36885429A5E4F030AB0CD02CE0cd96E7#code"
     }
   },
   "bsc": {
