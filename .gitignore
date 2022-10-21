@@ -9,5 +9,6 @@ coverage.json
 # For Hardhat
 artifacts/
 cache/
+.env
 
 package-lock.json
