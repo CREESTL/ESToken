@@ -1,3 +1,7 @@
+/**
+ * This Truffle config file is compatible with Solidity 0.6.3
+ */
+
 module.exports = {
   networks: {
     soliditycoverage: {
@@ -8,8 +12,8 @@ module.exports = {
     }
   },
   mocha: {
-    // reporter: "eth-gas-reporter",
-    // reporterOptions : { currency: "USD" }
+    reporter: "eth-gas-reporter",
+    reporterOptions : { currency: "USD" }
   },
   compilers: {
     solc: {
