@@ -29,7 +29,7 @@ contract('ESToken', async ([owner, alice, bob]) => {
       (await esToken.totalSupply.call()).should.be.bignumber.equal(new BN('0'));
       (await esToken.reserveAddress()).should.be.equal(ZERO_ADDRESS);
       (await esToken.exchangeAddress()).should.be.equal(ZERO_ADDRESS);
-      (await esToken.dailyInterest()).should.be.bignumber.equal(new BN('1000200000000000000')); // 1 + 0.02%
+      (await esToken.dailyInterest()).should.be.bignumber.equal(new BN('1000300000000000000')); // 1 + 0.03%
     });
   });
 
@@ -61,7 +61,7 @@ contract('ESToken', async ([owner, alice, bob]) => {
 
     it('should set/get daily interest', async () => {
       await this.esToken.init(this.exchange.address, { from: owner });
-      (await this.esToken.dailyInterest()).should.be.bignumber.equal(new BN('1000200000000000000')); // 1 + 0.02%
+      (await this.esToken.dailyInterest()).should.be.bignumber.equal(new BN('1000300000000000000')); // 1 + 0.03%
 
       await expectRevert(this.esToken.setDailyInterest(new BN('999999999999999999'), { from: owner }), 'ESToken: negative daily interest');
       await expectRevert(this.esToken.setDailyInterest(new BN('1000000000000000000'), { from: alice }), 'Ownable: caller is not the owner');
@@ -114,11 +114,11 @@ contract('ESToken', async ([owner, alice, bob]) => {
       balance_alice_0.should.be.bignumber.gt(new BN('999999990000'));
       await time.increase(new BN('86400'));
       const balance_alice_1 = await this.esToken.balanceOf(alice);
-      balance_alice_1.should.be.bignumber.lt(new BN('1000200010000')); // +200.000000 (clear interest)
+      balance_alice_1.should.be.bignumber.lt(new BN('1000300010000')); // +300.000000 (clear interest)
       balance_alice_1.should.be.bignumber.gt(new BN('1000199990000'));
       await this.esToken.transfer(owner, balance_alice_1, { from: alice });
       const balance_alice_2 = await this.esToken.balanceOf(alice);
-      balance_alice_2.should.be.bignumber.equal(new BN('0'));
+      balance_alice_2.should.be.bignumber.lt(new BN('3500'));
     });
 
     it('should calculate compound interest right', async () =>  {
@@ -130,30 +130,30 @@ contract('ESToken', async ([owner, alice, bob]) => {
         await this.esToken.accrueInterest({ from: bob });
       }
       const balance_alice_1 = await this.esToken.balanceOf(alice);
-      balance_alice_1.should.be.bignumber.lt(new BN('1001000510000')); // +1000.000000 (clear interest) +less0.500000 (compound interest)
+      balance_alice_1.should.be.bignumber.lt(new BN('1001502000000')); // +1000.000000 (clear interest) +less0.500000 (compound interest)
       balance_alice_1.should.be.bignumber.gt(new BN('1000999990000')); // great that  +1000.000000 (clear interest)
       const balance_bob_1 = await this.esToken.balanceOf(bob);
-      balance_bob_1.should.be.bignumber.lt(new BN('1001000510000')); // +1000.000000 (clear interest) +less0.500000 (compound interest)
+      balance_bob_1.should.be.bignumber.lt(new BN('1001502000000')); // +1000.000000 (clear interest) +less0.500000 (compound interest)
       balance_bob_1.should.be.bignumber.gt(new BN('1000999990000')); // great that  +1000.000000 (clear interest)
       await this.esToken.transfer(owner, balance_alice_1, { from: alice });
       await this.esToken.transfer(owner, balance_bob_1, { from: bob });
       (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.lt(new BN('24998000000000')); // -2_001.000000
-      (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.gt(new BN('24997998000000'));
+      (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.gt(new BN('24996997773000'));
       // second try
       await this.esToken.transfer(alice, new BN('1000000000000'), { from: owner });
       await this.esToken.transfer(bob, new BN('1000000000000'), { from: owner });
       await time.increase(new BN('432000'));
       await this.esToken.accrueInterest({ from: alice });
       const balance_alice_2 = await this.esToken.balanceOf(alice);
-      balance_alice_2.should.be.bignumber.lt(new BN('1001000010000')); // +1000.000000 (clear interest)
+      balance_alice_2.should.be.bignumber.lt(new BN('1001500000000')); // +1000.000000 (clear interest)
       balance_alice_2.should.be.bignumber.gt(new BN('1000999990000')); // great that  +1000.000000 (clear interest)
       const balance_bob_2 = await this.esToken.balanceOf(bob);
-      balance_bob_2.should.be.bignumber.lt(new BN('1001000010000')); // +1000.000000 (clear interest)
+      balance_bob_2.should.be.bignumber.lt(new BN('1001500000000')); // +1000.000000 (clear interest)
       balance_bob_2.should.be.bignumber.gt(new BN('1000999990000')); // great that  +1000.000000 (clear interest)
       await this.esToken.transfer(owner, balance_alice_2, { from: alice });
       await this.esToken.transfer(owner, balance_bob_2, { from: bob });
       (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.lt(new BN('24996000000000')); // -4_001.000000
-      (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.gt(new BN('24995998000000'));
+      (await this.esToken.balanceOf(RESERVE_ADDRESS)).should.be.bignumber.gt(new BN('24993997773070'));
     });
 
     it('should calculate holders counter right', async () => {
