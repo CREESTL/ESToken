@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "ES token smart contract",
   "scripts": {
-    "truffle": "truffle",
-    "compile": "truffle compile",
+    "compile": "hardhat compile",
     "test": "truffle test",
     "flatten": "hardhat flatten contracts/ESToken.sol > flat/ESToken.sol && hardhat flatten contracts/Exchange.sol > flat/Exchange.sol",
     "eslint": "eslint test/",
