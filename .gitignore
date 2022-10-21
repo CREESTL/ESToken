@@ -5,6 +5,9 @@ build
 .coverage-contracts/
 coverage/
 coverage.json
-Flattened.sol
+
+# For Hardhat
+artifacts/
+cache/
 
 package-lock.json
