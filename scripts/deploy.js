@@ -10,7 +10,6 @@ const OUTPUT_DEPLOY = require("./deployOutput.json");
 
 let contractName;
 let token;
-let usdt;
 let exchange;
 
 async function main() {
@@ -59,57 +58,17 @@ async function main() {
   }
   console.log(`[${contractName}]: Verification Finished!`);
 
-  // ====================================================
-
-  // Contract #2: Tether Token
-
-  // Deploy
-  contractName = "TetherToken";
-  console.log(`[${contractName}]: Start of Deployment...`);
-  _contractProto = await ethers.getContractFactory(contractName);
-  contractDeployTx = await _contractProto.deploy(
-    "1_000_000_000_000_000_000_000",
-    "USDT",
-    "USDT",
-    6
-  );
-  usdt = await contractDeployTx.deployed();
-  console.log(`[${contractName}]: Deployment Finished!`);
-  OUTPUT_DEPLOY[network.name][contractName].address = usdt.address;
-
-  // Verify
-  console.log(`[${contractName}]: Start of Verification...`);
-
-  await delay(90000);
-
-  OUTPUT_DEPLOY[network.name][contractName].address = usdt.address;
-  if (network.name === "bsc") {
-    url = "https://bscscan.com/address/" + usdt.address + "#code";
-  } else if (network.name === "chapel") {
-    url = "https://testnet.bscscan.com/address/" + usdt.address + "#code";
-  }
-  OUTPUT_DEPLOY[network.name][contractName].verification = url;
-
-  try {
-    await hre.run("verify:verify", {
-      address: usdt.address,
-      // TODO what amount? what name, symbol, what decimals?
-      constructorArguments: ["1_000_000_000_000_000_000_000", "USDT", "USDT", 6],
-    });
-  } catch (error) {
-    console.error(error);
-  }
-  console.log(`[${contractName}]: Verification Finished!`);
 
   // ====================================================
 
-  // Contract #3: Exchange
+  // Contract #2: Exchange
 
   // Deploy
   contractName = "Exchange";
   console.log(`[${contractName}]: Start of Deployment...`);
   _contractProto = await ethers.getContractFactory(contractName);
-  contractDeployTx = await _contractProto.deploy(token.address, usdt.address);
+  // TODO Put real USDT address from testnet or mainnet here as the second parameter!!!
+  contractDeployTx = await _contractProto.deploy(token.address, token.address);
   exchange = await contractDeployTx.deployed();
   console.log(`[${contractName}]: Deployment Finished!`);
   OUTPUT_DEPLOY[network.name][contractName].address = exchange.address;
