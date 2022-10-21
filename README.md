@@ -3,7 +3,7 @@
 This repository contains contracts of poker game cards marketplace
 
 #### Table on contents
-[Prerequisites](#preq)
+[Prerequisites](#preq)  
 [Build & Deploy](#build_and_deploy)  
 [Wallets](#wallets)  
 
