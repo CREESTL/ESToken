@@ -6,7 +6,7 @@
     "truffle": "truffle",
     "compile": "truffle compile",
     "test": "truffle test",
-    "flatten": "truffle-flattener contracts/Exchange.sol contracts/ESToken.sol >> ./Flattened.sol",
+    "flatten": "hardhat flatten contracts/ESToken.sol > flat/ESToken.sol && hardhat flatten contracts/Exchange.sol > flat/Exchange.sol",
     "eslint": "eslint test/",
     "prettier": "prettier --write .",
     "solhint": "solhint ./contracts/*.sol"
@@ -14,7 +14,9 @@
   "author": "IntegralTeam",
   "license": "ISC",
   "dependencies": {
-    "@openzeppelin/contracts": "3.0.0"
+    "@nomicfoundation/hardhat-toolbox": "2.0.0",
+    "@openzeppelin/contracts": "3.0.0",
+    "dotenv": "16.0.3"
   },
   "devDependencies": {
     "@openzeppelin/test-helpers": "0.5.6",
@@ -34,6 +36,7 @@
     "eslint-plugin-react-hooks": "3.0.0",
     "eth-gas-reporter": "0.2.17",
     "ethereumjs-testrpc-sc": "6.5.1-sc.1",
+    "hardhat": "2.12.0",
     "karma": "5.0.2",
     "lodash": "4.17.15",
     "openzeppelin-test-helpers": "0.5.1",
