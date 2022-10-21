@@ -34,8 +34,7 @@ async function main() {
   contractName = "ESToken";
   console.log(`[${contractName}]: Start of Deployment...`);
   let _contractProto = await ethers.getContractFactory(contractName);
-  let contractDeployTx = await _contractProto.deploy();
-  token = await contractDeployTx.deployed();
+  token = await _contractProto.deploy();
   console.log(`[${contractName}]: Deployment Finished!`);
   OUTPUT_DEPLOY[network.name][contractName].address = token.address;
 
@@ -78,8 +77,7 @@ async function main() {
   contractName = "Exchange";
   console.log(`[${contractName}]: Start of Deployment...`);
   _contractProto = await ethers.getContractFactory(contractName);
-  contractDeployTx = await _contractProto.deploy(token.address, USDT_ADDRESS);
-  exchange = await contractDeployTx.deployed();
+  exchange = await _contractProto.deploy(token.address, USDT_ADDRESS);
   console.log(`[${contractName}]: Deployment Finished!`);
   OUTPUT_DEPLOY[network.name][contractName].address = exchange.address;
 
