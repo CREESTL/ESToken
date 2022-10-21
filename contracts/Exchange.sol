@@ -70,7 +70,9 @@ contract Exchange is ExchangeInterface, Ownable {
         _ESTTAddress = esttAddress;
         IERC20USDTCOMPATIBLE potentialUSDT = IERC20USDTCOMPATIBLE(usdtAddress);
         _USDTDecimals = potentialUSDT.decimals();
-        require(_USDTDecimals == 6, "address doesn't match to USDT");
+        // TODO Use 18 for deploy
+        //      Use 6 for old Truffle tests
+        require(_USDTDecimals == 18, "address doesn't match to USDT");
         _USDT = potentialUSDT;
         _USDTAddress = usdtAddress;
         _USDTDecimals = 10**_USDTDecimals;
