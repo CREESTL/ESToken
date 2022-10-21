@@ -1,7 +1,6 @@
-ES Token Contract
-=================
+# ES Token Contract
 
-**Requirements** 
+**Requirements**
 
 - nodeJS v8.10.0 or later
 - npm v6.13.0 or later
@@ -34,8 +33,8 @@ ES Token Contract
 - wait for the transaction to be published
 - choose an Exchange contract
 - next to the "deploy field", enter the address of just deployed ESToken and USDT, for example:
-0x7cC0742Ce292dDc9a35C32b8f6F33815f14f85f, 0xdac17f958d2ee523a2206206994597c13d831ec7
-- press Deploy 
+  0x7cC0742Ce292dDc9a35C32b8f6F33815f14f85f, 0xdac17f958d2ee523a2206206994597c13d831ec7
+- press Deploy
 - waiting for the contract to deploy
 - select ESToken contract (click on address to expand), find init function.
 - enter the address of the newly Exchange contract in the field next to it (for example: 0x72e07c609576804D27F781ee0D844D2fba0EA1af)

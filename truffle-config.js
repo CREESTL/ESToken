@@ -8,12 +8,12 @@ module.exports = {
       host: "localhost",
       port: 8555,
       network_id: "*", // Match any network id
-      gas: 6721975
-    }
+      gas: 6721975,
+    },
   },
   mocha: {
     reporter: "eth-gas-reporter",
-    reporterOptions : { currency: "USD" }
+    reporterOptions: { currency: "USD" },
   },
   compilers: {
     solc: {
@@ -21,11 +21,11 @@ module.exports = {
       settings: {
         optimizer: {
           enabled: true,
-          runs: 200
+          runs: 200,
         },
-        evmVersion: "constantinople"
-      }
-    }
+        evmVersion: "constantinople",
+      },
+    },
   },
-  plugins: ["solidity-coverage"]
-}
+  plugins: ["solidity-coverage"],
+};
