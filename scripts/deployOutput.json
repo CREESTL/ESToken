@@ -1,22 +1,22 @@
 {
   "chapel": {
     "ESToken": {
-      "address": "0xEe89732b409088589c0ac95389bb0857b8Fb49D8",
-      "verification": "https://testnet.bscscan.com/address/0xEe89732b409088589c0ac95389bb0857b8Fb49D8#code"
+      "address": "0x02e2105dE66cbED511E10E726eAE6AD7fC4D1664",
+      "verification": "https://testnet.bscscan.com/address/0x02e2105dE66cbED511E10E726eAE6AD7fC4D1664#code"
     },
     "Exchange": {
-      "address": "0x7dB8a12A36885429A5E4F030AB0CD02CE0cd96E7",
-      "verification": "https://testnet.bscscan.com/address/0x7dB8a12A36885429A5E4F030AB0CD02CE0cd96E7#code"
+      "address": "0x5F78C31c9ECe9Ff7CD803d634ee2524A119f4404",
+      "verification": "https://testnet.bscscan.com/address/0x5F78C31c9ECe9Ff7CD803d634ee2524A119f4404#code"
     }
   },
   "bsc": {
     "ESToken": {
-      "address": "",
-      "verification": ""
+      "address": "0xFC2E2Acb5d8eCE1891B5F044d97AD0E48E6Cc4FF",
+      "verification": "https://bscscan.com/address/0xFC2E2Acb5d8eCE1891B5F044d97AD0E48E6Cc4FF#code"
     },
     "Exchange": {
-      "address": "",
-      "verification": ""
+      "address": "0x18Fe92C415aFdEC386A9A66A11ED5dAEfc16006e",
+      "verification": "https://bscscan.com/address/0x18Fe92C415aFdEC386A9A66A11ED5dAEfc16006e#code"
     }
   }
 }

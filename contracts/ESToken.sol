@@ -45,9 +45,10 @@ contract ESToken is ESTokenInterface, Context, ERC20, Ownable {
     }
 
     constructor() public ERC20("ESToken", "ESTT") {
-        _setupDecimals(6);
-        _dailyInterest = 300_000_000_000_000; // +0.03%
-        _referralInterest = 100_000_000_000_000; // +0.01%
+        // Default `decimals` of ESToken is 18
+        _setupDecimals(18);
+        _dailyInterest = 500_000_000_000_000; // +0.05%
+        _referralInterest = 250_000_000_000_000; // +0.025%
         _expIndex = 10**18;
         _expReferralIndex = 10**18;
         _accrualTimestamp = block.timestamp;
