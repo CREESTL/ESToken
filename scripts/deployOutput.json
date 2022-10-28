@@ -11,12 +11,12 @@
   },
   "bsc": {
     "ESToken": {
-      "address": "0xFC2E2Acb5d8eCE1891B5F044d97AD0E48E6Cc4FF",
-      "verification": "https://bscscan.com/address/0xFC2E2Acb5d8eCE1891B5F044d97AD0E48E6Cc4FF#code"
+      "address": "0x6403f03bE79aF0B0680D7145b6c5EFd65e249f5e",
+      "verification": "https://bscscan.com/address/0x6403f03bE79aF0B0680D7145b6c5EFd65e249f5e#code"
     },
     "Exchange": {
-      "address": "0x18Fe92C415aFdEC386A9A66A11ED5dAEfc16006e",
-      "verification": "https://bscscan.com/address/0x18Fe92C415aFdEC386A9A66A11ED5dAEfc16006e#code"
+      "address": "0xE12BF1879b0F82c9747DeAc8cCa2d186cF7a85B0",
+      "verification": "https://bscscan.com/address/0xE12BF1879b0F82c9747DeAc8cCa2d186cF7a85B0#code"
     }
   }
 }
